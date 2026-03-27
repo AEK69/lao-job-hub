@@ -1,7 +1,7 @@
 import { useAppStore, Job } from '@/lib/store';
 import { t, districts } from '@/lib/i18n';
 import { motion } from 'framer-motion';
-import { MapPin, Phone, Clock, Flame } from 'lucide-react';
+import { MapPin, Clock, Flame, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -33,31 +33,37 @@ export function JobCard({ job, index = 0 }: { job: Job; index?: number }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
     >
-      <Card className="p-4 hover:shadow-lg transition-shadow border-l-4 border-l-primary/50 hover:border-l-primary">
+      <Card className={`p-4 hover:shadow-lg transition-shadow border-l-4 ${job.is_featured ? 'border-l-accent bg-accent/5' : 'border-l-primary/50 hover:border-l-primary'}`}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
-              {job.isUrgent && (
+              {job.is_featured && (
+                <Badge className="gap-1 text-xs bg-accent text-accent-foreground">
+                  <Star className="h-3 w-3" />
+                  {language === 'en' ? 'Featured' : language === 'th' ? 'แนะนำ' : 'ແນະນຳ'}
+                </Badge>
+              )}
+              {job.is_urgent && (
                 <Badge variant="destructive" className="gap-1 text-xs">
                   <Flame className="h-3 w-3" />
                   {t('job.urgent', language)}
                 </Badge>
               )}
-              <Badge variant={job.postType === 'hiring' ? 'default' : 'secondary'} className="text-xs">
-                {t(job.postType === 'hiring' ? 'job.type.employer' : 'job.type.worker', language)}
+              <Badge variant={job.post_type === 'hiring' ? 'default' : 'secondary'} className="text-xs">
+                {t(job.post_type === 'hiring' ? 'job.type.employer' : 'job.type.worker', language)}
               </Badge>
               <span className="text-xs text-muted-foreground flex items-center gap-1">
                 <Clock className="h-3 w-3" />
-                {timeAgo(job.createdAt, language)}
+                {timeAgo(job.created_at, language)}
               </span>
             </div>
 
             <h3 className="font-semibold text-lg truncate">{job.title}</h3>
-            <p className="text-sm text-muted-foreground mt-0.5">{t('job.postedBy', language)}: {job.posterName}</p>
+            <p className="text-sm text-muted-foreground mt-0.5">{t('job.postedBy', language)}: {job.poster_name}</p>
 
             <div className="flex items-center gap-4 mt-2 text-sm">
               <span className="flex items-center gap-1 text-primary font-semibold">
-                💰 {formatSalary(job.salary)} {t(job.salaryType === 'day' ? 'job.perDay' : 'job.perMonth', language)}
+                💰 {formatSalary(job.salary)} {t(job.salary_type === 'day' ? 'job.perDay' : 'job.perMonth', language)}
               </span>
               <span className="flex items-center gap-1 text-muted-foreground">
                 <MapPin className="h-3.5 w-3.5" />

@@ -1,23 +1,47 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAppStore } from '@/lib/store';
+import { useAuth } from '@/hooks/useAuth';
 import { t } from '@/lib/i18n';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { motion } from 'framer-motion';
-import { Briefcase, Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import { Briefcase, Menu, X, MessageCircle, User, LogOut, Coins } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
 
 export function Header() {
   const { language } = useAppStore();
+  const { user, profile, signOut } = useAuth();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    const loadUnread = async () => {
+      const { count } = await supabase
+        .from('messages')
+        .select('*, conversations!inner(*)', { count: 'exact', head: true })
+        .eq('is_read', false)
+        .neq('sender_id', user.id)
+        .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`, { referencedTable: 'conversations' });
+      setUnreadCount(count || 0);
+    };
+    loadUnread();
+    const interval = setInterval(loadUnread, 15000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   const links = [
     { to: '/', label: t('nav.home', language) },
     { to: '/jobs', label: t('nav.findJobs', language) },
     { to: '/post', label: t('nav.postJob', language) },
-    { to: '/admin', label: t('nav.admin', language) },
   ];
+
+  if (user) {
+    links.push({ to: '/admin', label: t('nav.admin', language) });
+  }
 
   return (
     <header className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
@@ -36,19 +60,62 @@ export function Header() {
         <nav className="hidden md:flex items-center gap-1">
           {links.map((link) => (
             <Link key={link.to} to={link.to}>
-              <Button
-                variant={location.pathname === link.to ? 'default' : 'ghost'}
-                size="sm"
-              >
+              <Button variant={location.pathname === link.to ? 'default' : 'ghost'} size="sm">
                 {link.label}
               </Button>
             </Link>
           ))}
+
+          {user && (
+            <>
+              <Link to="/chat">
+                <Button variant={location.pathname === '/chat' ? 'default' : 'ghost'} size="sm" className="relative gap-1">
+                  <MessageCircle className="h-4 w-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] rounded-full h-4 w-4 flex items-center justify-center">
+                      {unreadCount}
+                    </span>
+                  )}
+                </Button>
+              </Link>
+              <Link to="/profile">
+                <Button variant={location.pathname === '/profile' ? 'default' : 'ghost'} size="sm" className="gap-1">
+                  <Coins className="h-4 w-4" />
+                  <span className="text-xs">{profile?.coin_balance || 0}</span>
+                </Button>
+              </Link>
+              <Button variant="ghost" size="sm" onClick={signOut} className="gap-1">
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </>
+          )}
+
+          {!user && (
+            <Link to="/auth">
+              <Button size="sm" className="gap-1">
+                <User className="h-4 w-4" />
+                {language === 'en' ? 'Login' : language === 'th' ? 'เข้าสู่ระบบ' : 'ເຂົ້າສູ່ລະບົບ'}
+              </Button>
+            </Link>
+          )}
+
           <LanguageSwitcher />
         </nav>
 
         {/* Mobile toggle */}
         <div className="flex md:hidden items-center gap-2">
+          {user && (
+            <Link to="/chat" className="relative">
+              <Button variant="ghost" size="icon">
+                <MessageCircle className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] rounded-full h-4 w-4 flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </Button>
+            </Link>
+          )}
           <LanguageSwitcher />
           <Button variant="ghost" size="icon" onClick={() => setMobileOpen(!mobileOpen)}>
             {mobileOpen ? <X /> : <Menu />}
@@ -65,14 +132,30 @@ export function Header() {
         >
           {links.map((link) => (
             <Link key={link.to} to={link.to} onClick={() => setMobileOpen(false)}>
-              <Button
-                variant={location.pathname === link.to ? 'default' : 'ghost'}
-                className="w-full justify-start"
-              >
+              <Button variant={location.pathname === link.to ? 'default' : 'ghost'} className="w-full justify-start">
                 {link.label}
               </Button>
             </Link>
           ))}
+          {user ? (
+            <>
+              <Link to="/profile" onClick={() => setMobileOpen(false)}>
+                <Button variant="ghost" className="w-full justify-start gap-2">
+                  <User className="h-4 w-4" /> {language === 'en' ? 'Profile' : language === 'th' ? 'โปรไฟล์' : 'ໂປຣໄຟລ໌'}
+                  <Badge variant="secondary" className="ml-auto">🪙 {profile?.coin_balance || 0}</Badge>
+                </Button>
+              </Link>
+              <Button variant="ghost" className="w-full justify-start gap-2 text-destructive" onClick={() => { signOut(); setMobileOpen(false); }}>
+                <LogOut className="h-4 w-4" /> {language === 'en' ? 'Logout' : language === 'th' ? 'ออกจากระบบ' : 'ອອກຈາກລະບົບ'}
+              </Button>
+            </>
+          ) : (
+            <Link to="/auth" onClick={() => setMobileOpen(false)}>
+              <Button className="w-full gap-2">
+                <User className="h-4 w-4" /> {language === 'en' ? 'Login' : language === 'th' ? 'เข้าสู่ระบบ' : 'ເຂົ້າສູ່ລະບົບ'}
+              </Button>
+            </Link>
+          )}
         </motion.nav>
       )}
     </header>
