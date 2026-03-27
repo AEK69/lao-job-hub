@@ -1,6 +1,6 @@
-import { useAppStore } from '@/lib/store';
+import { useAppStore, Job } from '@/lib/store';
 import { t, districts, categories } from '@/lib/i18n';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, MapPin, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,29 +8,39 @@ import { JobCard } from '@/components/JobCard';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { useSearchParams } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 
 const JobsPage = () => {
-  const { language, jobs } = useAppStore();
+  const { language } = useAppStore();
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [district, setDistrict] = useState('all');
   const [category, setCategory] = useState(searchParams.get('category') || 'all');
   const [postType, setPostType] = useState<'all' | 'hiring' | 'seeking'>('all');
+  const [jobs, setJobs] = useState<Job[]>([]);
 
-  const filtered = jobs.filter(job => {
-    const matchSearch = !search || job.title.toLowerCase().includes(search.toLowerCase());
-    const matchDistrict = district === 'all' || job.district === district;
-    const matchCategory = category === 'all' || job.category === category;
-    const matchType = postType === 'all' || job.postType === postType;
-    return matchSearch && matchDistrict && matchCategory && matchType;
-  });
+  useEffect(() => {
+    const load = async () => {
+      let query = supabase
+        .from('jobs')
+        .select('*')
+        .eq('status', 'active')
+        .order('is_featured', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (district !== 'all') query = query.eq('district', district);
+      if (category !== 'all') query = query.eq('category', category);
+      if (postType !== 'all') query = query.eq('post_type', postType);
+      if (search) query = query.ilike('title', `%${search}%`);
+
+      const { data } = await query;
+      setJobs((data as Job[]) || []);
+    };
+    load();
+  }, [district, category, postType, search]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -47,51 +57,35 @@ const JobsPage = () => {
           </div>
           <Select value={district} onValueChange={setDistrict}>
             <SelectTrigger className="w-[160px]">
-              <MapPin className="h-4 w-4 mr-1" />
-              <SelectValue />
+              <MapPin className="h-4 w-4 mr-1" /><SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('search.allDistricts', language)}</SelectItem>
-              {districts.map(d => (
-                <SelectItem key={d.id} value={d.id}>{d[language] || d.lo}</SelectItem>
-              ))}
+              {districts.map(d => (<SelectItem key={d.id} value={d.id}>{d[language] || d.lo}</SelectItem>))}
             </SelectContent>
           </Select>
           <Select value={category} onValueChange={setCategory}>
             <SelectTrigger className="w-[160px]">
-              <Filter className="h-4 w-4 mr-1" />
-              <SelectValue />
+              <Filter className="h-4 w-4 mr-1" /><SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('search.allCategories', language)}</SelectItem>
-              {categories.map(cat => (
-                <SelectItem key={cat.id} value={cat.id}>{cat.icon} {t(`cat.${cat.id}` as any, language)}</SelectItem>
-              ))}
+              {categories.map(cat => (<SelectItem key={cat.id} value={cat.id}>{cat.icon} {t(`cat.${cat.id}` as any, language)}</SelectItem>))}
             </SelectContent>
           </Select>
         </div>
 
         <div className="flex gap-2 mb-4">
           {(['all', 'hiring', 'seeking'] as const).map(type => (
-            <Button
-              key={type}
-              variant={postType === type ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setPostType(type)}
-            >
-              {type === 'all'
-                ? (language === 'en' ? 'All' : language === 'th' ? 'ทั้งหมด' : 'ທັງໝົດ')
-                : t(type === 'hiring' ? 'job.type.employer' : 'job.type.worker', language)
-              }
+            <Button key={type} variant={postType === type ? 'default' : 'outline'} size="sm" onClick={() => setPostType(type)}>
+              {type === 'all' ? (language === 'en' ? 'All' : language === 'th' ? 'ทั้งหมด' : 'ທັງໝົດ') : t(type === 'hiring' ? 'job.type.employer' : 'job.type.worker', language)}
             </Button>
           ))}
         </div>
 
         <div className="space-y-3">
-          {filtered.map((job, i) => (
-            <JobCard key={job.id} job={job} index={i} />
-          ))}
-          {filtered.length === 0 && (
+          {jobs.map((job, i) => (<JobCard key={job.id} job={job} index={i} />))}
+          {jobs.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
               <span className="text-4xl block mb-2">🔍</span>
               {language === 'en' ? 'No jobs found' : language === 'th' ? 'ไม่พบงาน' : 'ບໍ່ພົບວຽກ'}
