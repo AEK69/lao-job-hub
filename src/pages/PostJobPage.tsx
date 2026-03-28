@@ -41,6 +41,8 @@ const PostJobPage = () => {
     poster_name: '',
     is_urgent: false,
     is_featured: false,
+    work_date: '',
+    work_time: '',
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -94,7 +96,9 @@ const PostJobPage = () => {
       poster_name: form.poster_name,
       is_urgent: form.is_urgent,
       is_featured: form.is_featured,
-    });
+      work_date: form.work_date || null,
+      work_time: form.work_time || null,
+    } as any);
 
     if (error) {
       toast.error(error.message);
@@ -179,6 +183,17 @@ const PostJobPage = () => {
                       <SelectItem value="month">{t('job.perMonth', language)}</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>{language === 'en' ? 'Work Date' : language === 'th' ? 'วันเริ่มงาน' : 'ວັນເລີ່ມວຽກ'}</Label>
+                  <Input type="date" value={form.work_date} onChange={e => update('work_date', e.target.value)} />
+                </div>
+                <div>
+                  <Label>{language === 'en' ? 'Start Time' : language === 'th' ? 'เวลาเริ่ม' : 'ເວລາເລີ່ມ'}</Label>
+                  <Input type="time" value={form.work_time} onChange={e => update('work_time', e.target.value)} />
                 </div>
               </div>
 

@@ -1,0 +1,2 @@
+ALTER TABLE public.jobs ADD COLUMN work_date DATE DEFAULT NULL;
+ALTER TABLE public.jobs ADD COLUMN work_time TIME DEFAULT NULL;

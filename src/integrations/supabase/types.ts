@@ -111,6 +111,8 @@ export type Database = {
           title: string
           updated_at: string
           user_id: string
+          work_date: string | null
+          work_time: string | null
         }
         Insert: {
           address: string
@@ -132,6 +134,8 @@ export type Database = {
           title: string
           updated_at?: string
           user_id: string
+          work_date?: string | null
+          work_time?: string | null
         }
         Update: {
           address?: string
@@ -153,6 +157,8 @@ export type Database = {
           title?: string
           updated_at?: string
           user_id?: string
+          work_date?: string | null
+          work_time?: string | null
         }
         Relationships: []
       }
