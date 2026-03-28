@@ -39,9 +39,7 @@ export function Header() {
     { to: '/post', label: t('nav.postJob', language) },
   ];
 
-  if (user) {
-    links.push({ to: '/admin', label: t('nav.admin', language) });
-  }
+  // Admin link removed from public nav - accessible via /admin URL only
 
   return (
     <header className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
