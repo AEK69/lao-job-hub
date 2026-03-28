@@ -18,6 +18,8 @@ export interface Job {
   is_featured: boolean;
   lat?: number | null;
   lng?: number | null;
+  work_date?: string | null;
+  work_time?: string | null;
   status: string;
   created_at: string;
   updated_at: string;

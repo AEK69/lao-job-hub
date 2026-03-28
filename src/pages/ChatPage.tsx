@@ -155,6 +155,13 @@ const ChatPage = () => {
         setMessages(prev => [...prev, msg]);
         if (msg.sender_id !== user?.id) {
           supabase.from('messages').update({ is_read: true }).eq('id', msg.id).then();
+          // Show toast notification for new message
+          const conv = conversations.find(c => c.id === msg.conversation_id);
+          const senderName = conv?.other_profile?.display_name || '?';
+          toast(
+            `💬 ${senderName}: ${msg.content.slice(0, 50)}${msg.content.length > 50 ? '...' : ''}`,
+            { duration: 5000 }
+          );
         }
       })
       .subscribe();

@@ -133,6 +133,22 @@ const JobDetailPage = () => {
               <p className="text-muted-foreground whitespace-pre-wrap">{job.description}</p>
             </div>
 
+            {(job.work_date || job.work_time) && (
+              <div className="bg-accent/10 rounded-xl p-4 mb-6 flex items-center gap-3">
+                <Clock className="h-5 w-5 text-accent" />
+                <div>
+                  <div className="text-sm text-muted-foreground">
+                    {language === 'en' ? 'Work Schedule' : language === 'th' ? 'กำหนดการ' : 'ກຳນົດເວລາ'}
+                  </div>
+                  <div className="font-medium">
+                    {job.work_date && new Date(job.work_date).toLocaleDateString(language === 'th' ? 'th-TH' : language === 'en' ? 'en-US' : 'lo-LA')}
+                    {job.work_date && job.work_time && ' • '}
+                    {job.work_time && job.work_time.slice(0, 5)}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="mb-6 space-y-2">
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-primary" />
