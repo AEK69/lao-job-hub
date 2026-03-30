@@ -20,6 +20,14 @@ export interface Profile {
   district: string | null;
   bio: string | null;
   coin_balance: number;
+  kyc_status: string;
+  id_card_url: string | null;
+  date_of_birth: string | null;
+  is_student: boolean;
+  guardian_name: string | null;
+  guardian_phone: string | null;
+  full_name: string | null;
+  address: string | null;
 }
 
 const AuthContext = createContext<AuthContextType>({
