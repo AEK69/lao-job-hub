@@ -107,6 +107,11 @@ const JobDetailPage = () => {
               </Badge>
             </div>
 
+            {/* Job Image */}
+            {(job as any).image_url && (
+              <img src={(job as any).image_url} alt={job.title} className="w-full max-h-64 object-cover rounded-lg mb-4" />
+            )}
+
             <h1 className="text-2xl font-bold mb-2">{job.title}</h1>
             <p className="text-muted-foreground mb-1">{t('job.postedBy', language)}: {job.poster_name}</p>
 
