@@ -11,14 +11,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Coins, User, Save, Briefcase, History, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Coins, User, Save, Briefcase, ArrowUpRight, ArrowDownLeft, Camera, Clock, ShieldCheck, ShieldAlert, XCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Link, Navigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface CoinTransaction {
   id: string;
@@ -31,15 +30,13 @@ interface CoinTransaction {
 const ProfilePage = () => {
   const { user, profile, refreshProfile, loading } = useAuth();
   const { language } = useAppStore();
-  const [form, setForm] = useState({
-    display_name: '',
-    phone: '',
-    district: '',
-    bio: '',
-  });
+  const [form, setForm] = useState({ display_name: '', phone: '', district: '', bio: '' });
   const [saving, setSaving] = useState(false);
   const [myJobs, setMyJobs] = useState<Job[]>([]);
   const [transactions, setTransactions] = useState<CoinTransaction[]>([]);
+  const [uploading, setUploading] = useState(false);
+
+  const l = (lo: string, th: string, en: string) => language === 'en' ? en : language === 'th' ? th : lo;
 
   useEffect(() => {
     if (profile) {
@@ -59,20 +56,12 @@ const ProfilePage = () => {
   }, [user]);
 
   const loadMyJobs = async () => {
-    const { data } = await supabase
-      .from('jobs')
-      .select('*')
-      .eq('user_id', user!.id)
-      .order('created_at', { ascending: false });
+    const { data } = await supabase.from('jobs').select('*').eq('user_id', user!.id).order('created_at', { ascending: false });
     setMyJobs((data as Job[]) || []);
   };
 
   const loadTransactions = async () => {
-    const { data } = await supabase
-      .from('coin_transactions')
-      .select('*')
-      .eq('user_id', user!.id)
-      .order('created_at', { ascending: false });
+    const { data } = await supabase.from('coin_transactions').select('*').eq('user_id', user!.id).order('created_at', { ascending: false });
     setTransactions((data as CoinTransaction[]) || []);
   };
 
@@ -81,62 +70,88 @@ const ProfilePage = () => {
 
   const handleSave = async () => {
     setSaving(true);
-    const { error } = await supabase
-      .from('profiles')
-      .update(form)
-      .eq('user_id', user.id);
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success(language === 'en' ? 'Profile updated!' : language === 'th' ? 'อัปเดตโปรไฟล์แล้ว!' : 'ອັບເດດໂປຣໄຟລ໌ແລ້ວ!');
+    const { error } = await supabase.from('profiles').update(form).eq('user_id', user.id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success(l('ອັບເດດໂປຣໄຟລ໌ແລ້ວ!', 'อัปเดตโปรไฟล์แล้ว!', 'Profile updated!'));
       await refreshProfile();
     }
     setSaving(false);
   };
 
-  const labels = {
-    title: { lo: 'ໂປຣໄຟລ໌', th: 'โปรไฟล์', en: 'Profile' },
-    coins: { lo: 'ຫຼຽນ', th: 'เหรียญ', en: 'Coins' },
-    save: { lo: 'ບັນທຶກ', th: 'บันทึก', en: 'Save' },
-    myJobs: { lo: 'ວຽກຂອງຂ້ອຍ', th: 'งานของฉัน', en: 'My Jobs' },
-    history: { lo: 'ປະຫວັດທຸລະກຳ', th: 'ประวัติธุรกรรม', en: 'Transaction History' },
-    profile: { lo: 'ຂໍ້ມູນ', th: 'ข้อมูล', en: 'Info' },
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const ext = file.name.split('.').pop();
+      const filePath = `${user.id}/avatar.${ext}`;
+      const { error: upErr } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      await supabase.from('profiles').update({ avatar_url: data.publicUrl } as any).eq('user_id', user.id);
+      toast.success(l('ອັບໂຫລດຮູບແລ້ວ!', 'อัปโหลดรูปแล้ว!', 'Avatar uploaded!'));
+      await refreshProfile();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setUploading(false);
+    }
   };
-  const l = (key: keyof typeof labels) => labels[key][language] || labels[key].lo;
+
+  const handleCancelJob = async (jobId: string, title: string) => {
+    const { error } = await supabase.from('jobs').update({ status: 'cancelled' } as any).eq('id', jobId).eq('user_id', user.id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success(l(`ຍົກເລີກວຽກ: ${title}`, `ยกเลิกงาน: ${title}`, `Cancelled: ${title}`));
+      loadMyJobs();
+    }
+  };
+
+  const kycBadge = () => {
+    const status = profile?.kyc_status || 'pending';
+    if (status === 'approved') return <Badge className="gap-1 bg-green-500"><ShieldCheck className="h-3 w-3" /> {l('ຢືນຢັນແລ້ວ', 'ยืนยันแล้ว', 'Verified')}</Badge>;
+    if (status === 'rejected') return <Badge variant="destructive" className="gap-1"><ShieldAlert className="h-3 w-3" /> {l('ຖືກປະຕິເສດ', 'ถูกปฏิเสธ', 'Rejected')}</Badge>;
+    return <Badge variant="secondary" className="gap-1"><Clock className="h-3 w-3" /> {l('ລໍຖ້າຢືນຢັນ', 'รอยืนยัน', 'Pending Verification')}</Badge>;
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
       <div className="container py-6 flex-1 max-w-2xl">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
-            <User className="h-6 w-6" /> {l('title')}
-          </h1>
-
-          {/* Coin balance */}
-          <Card className="p-4 mb-6 bg-gradient-to-r from-primary/10 to-accent/10">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Coins className="h-6 w-6 text-primary" />
-                <span className="font-medium">{l('coins')}</span>
-              </div>
-              <Badge variant="secondary" className="text-lg px-3 py-1 gap-1">
-                🪙 {profile?.coin_balance || 0}
-              </Badge>
+          {/* Avatar & Info */}
+          <div className="flex items-center gap-4 mb-6">
+            <div className="relative">
+              <Avatar className="h-16 w-16">
+                <AvatarImage src={profile?.avatar_url || ''} />
+                <AvatarFallback>{(profile?.display_name || '?')[0]}</AvatarFallback>
+              </Avatar>
+              <label className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1 cursor-pointer hover:bg-primary/90">
+                <Camera className="h-3 w-3" />
+                <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploading} />
+              </label>
             </div>
-          </Card>
+            <div>
+              <h1 className="text-xl font-bold">{profile?.display_name || '—'}</h1>
+              <div className="flex items-center gap-2 mt-1">
+                {kycBadge()}
+                <Badge variant="secondary" className="gap-1">🪙 {profile?.coin_balance || 0}</Badge>
+              </div>
+            </div>
+          </div>
 
           <Tabs defaultValue="profile">
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="profile">👤 {l('profile')}</TabsTrigger>
-              <TabsTrigger value="jobs">📋 {l('myJobs')}</TabsTrigger>
-              <TabsTrigger value="history">🪙 {l('history')}</TabsTrigger>
+              <TabsTrigger value="profile">👤 {l('ຂໍ້ມູນ', 'ข้อมูล', 'Info')}</TabsTrigger>
+              <TabsTrigger value="jobs">📋 {l('ວຽກຂອງຂ້ອຍ', 'งานของฉัน', 'My Jobs')}</TabsTrigger>
+              <TabsTrigger value="history">🪙 {l('ປະຫວັດ', 'ประวัติ', 'History')}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="profile">
               <Card className="p-6 space-y-4">
                 <div>
-                  <Label>{language === 'en' ? 'Display Name' : language === 'th' ? 'ชื่อที่แสดง' : 'ຊື່ສະແດງ'}</Label>
+                  <Label>{l('ຊື່ສະແດງ', 'ชื่อที่แสดง', 'Display Name')}</Label>
                   <Input value={form.display_name} onChange={e => setForm(p => ({ ...p, display_name: e.target.value }))} />
                 </div>
                 <div>
@@ -148,18 +163,16 @@ const ProfilePage = () => {
                   <Select value={form.district} onValueChange={v => setForm(p => ({ ...p, district: v }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {districts.map(d => (
-                        <SelectItem key={d.id} value={d.id}>{d[language] || d.lo}</SelectItem>
-                      ))}
+                      {districts.map(d => (<SelectItem key={d.id} value={d.id}>{d[language] || d.lo}</SelectItem>))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label>{language === 'en' ? 'Bio' : language === 'th' ? 'เกี่ยวกับ' : 'ກ່ຽວກັບ'}</Label>
+                  <Label>{l('ກ່ຽວກັບ', 'เกี่ยวกับ', 'Bio')}</Label>
                   <Textarea value={form.bio} onChange={e => setForm(p => ({ ...p, bio: e.target.value }))} rows={3} />
                 </div>
                 <Button className="w-full gap-2" onClick={handleSave} disabled={saving}>
-                  <Save className="h-4 w-4" /> {l('save')}
+                  <Save className="h-4 w-4" /> {l('ບັນທຶກ', 'บันทึก', 'Save')}
                 </Button>
               </Card>
             </TabsContent>
@@ -168,25 +181,35 @@ const ProfilePage = () => {
               <Card className="divide-y">
                 {myJobs.length === 0 && (
                   <div className="p-8 text-center text-muted-foreground">
-                    {language === 'en' ? 'No jobs posted yet' : language === 'th' ? 'ยังไม่มีงานที่โพสต์' : 'ຍັງບໍ່ມີວຽກທີ່ໂພສ'}
+                    {l('ຍັງບໍ່ມີວຽກທີ່ໂພສ', 'ยังไม่มีงานที่โพสต์', 'No jobs posted yet')}
                   </div>
                 )}
                 {myJobs.map(job => {
                   const district = districts.find(d => d.id === job.district);
                   return (
-                    <Link key={job.id} to={`/jobs/${job.id}`} className="block p-4 hover:bg-accent/50 transition-colors">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Briefcase className="h-4 w-4 text-primary" />
-                        <span className="font-medium">{job.title}</span>
-                        <Badge variant={job.post_type === 'hiring' ? 'default' : 'secondary'} className="text-xs">
-                          {t(job.post_type === 'hiring' ? 'job.type.employer' : 'job.type.worker', language)}
-                        </Badge>
-                        {job.is_urgent && <Badge variant="destructive" className="text-xs">🔥</Badge>}
+                    <div key={job.id} className="p-4">
+                      <div className="flex items-center justify-between">
+                        <Link to={`/jobs/${job.id}`} className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Briefcase className="h-4 w-4 text-primary" />
+                            <span className="font-medium">{job.title}</span>
+                            <Badge variant={job.post_type === 'hiring' ? 'default' : 'secondary'} className="text-xs">
+                              {t(job.post_type === 'hiring' ? 'job.type.employer' : 'job.type.worker', language)}
+                            </Badge>
+                            {job.status === 'cancelled' && <Badge variant="destructive" className="text-xs">{l('ຍົກເລີກ', 'ยกเลิก', 'Cancelled')}</Badge>}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {district?.[language] || district?.lo} • {new Date(job.created_at).toLocaleDateString()}
+                          </div>
+                        </Link>
+                        {job.status === 'active' && (
+                          <Button variant="ghost" size="sm" className="text-destructive gap-1" onClick={() => handleCancelJob(job.id, job.title)}>
+                            <XCircle className="h-4 w-4" />
+                            {l('ຍົກເລີກ', 'ยกเลิก', 'Cancel')}
+                          </Button>
+                        )}
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {district?.[language] || district?.lo} • {new Date(job.created_at).toLocaleDateString()}
-                      </div>
-                    </Link>
+                    </div>
                   );
                 })}
               </Card>
@@ -196,7 +219,7 @@ const ProfilePage = () => {
               <Card className="divide-y">
                 {transactions.length === 0 && (
                   <div className="p-8 text-center text-muted-foreground">
-                    {language === 'en' ? 'No transactions yet' : language === 'th' ? 'ยังไม่มีธุรกรรม' : 'ຍັງບໍ່ມີທຸລະກຳ'}
+                    {l('ຍັງບໍ່ມີທຸລະກຳ', 'ยังไม่มีธุรกรรม', 'No transactions yet')}
                   </div>
                 )}
                 {transactions.map(tx => (
@@ -207,11 +230,9 @@ const ProfilePage = () => {
                       </div>
                       <div>
                         <div className="font-medium text-sm">
-                          {tx.type === 'topup' ? (language === 'en' ? 'Top-up' : language === 'th' ? 'เติมเหรียญ' : 'ເຕີມຫຼຽນ') : tx.description || tx.type}
+                          {tx.type === 'topup' ? l('ເຕີມຫຼຽນ', 'เติมเหรียญ', 'Top-up') : tx.description || tx.type}
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(tx.created_at).toLocaleString()}
-                        </div>
+                        <div className="text-xs text-muted-foreground">{new Date(tx.created_at).toLocaleString()}</div>
                       </div>
                     </div>
                     <span className={`font-bold ${tx.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>

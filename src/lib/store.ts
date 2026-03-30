@@ -20,6 +20,7 @@ export interface Job {
   lng?: number | null;
   work_date?: string | null;
   work_time?: string | null;
+  image_url?: string | null;
   status: string;
   created_at: string;
   updated_at: string;
