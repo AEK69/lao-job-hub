@@ -17,9 +17,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Coins, Star, Upload, ImageIcon } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
-const COST_URGENT = 5;
-const COST_FEATURED = 10;
+import { JOB_POSTING_COSTS, calculateJobPostingCost } from '@/lib/constants';
 
 const PostJobPage = () => {
   const { language } = useAppStore();
@@ -75,7 +73,10 @@ const PostJobPage = () => {
     );
   }
 
-  const coinCost = (form.is_urgent ? COST_URGENT : 0) + (form.is_featured ? COST_FEATURED : 0);
+  const coinCost = calculateJobPostingCost({
+    isUrgent: form.is_urgent,
+    isFeatured: form.is_featured,
+  });
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -259,14 +260,14 @@ const PostJobPage = () => {
                     <Switch checked={form.is_urgent} onCheckedChange={v => update('is_urgent', v)} />
                     <Label className="flex items-center gap-1">🔥 {t('job.urgent', language)}</Label>
                   </div>
-                  <Badge variant="outline">{COST_URGENT} 🪙</Badge>
+                  <Badge variant="outline">{JOB_POSTING_COSTS.URGENT} 🪙</Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Switch checked={form.is_featured} onCheckedChange={v => update('is_featured', v)} />
                     <Label className="flex items-center gap-1"><Star className="h-4 w-4" /> {l('ແນະນຳ', 'แนะนำ', 'Featured')}</Label>
                   </div>
-                  <Badge variant="outline">{COST_FEATURED} 🪙</Badge>
+                  <Badge variant="outline">{JOB_POSTING_COSTS.FEATURED} 🪙</Badge>
                 </div>
                 {coinCost > 0 && (
                   <div className="text-sm text-primary font-medium text-right">

@@ -1,6 +1,6 @@
 import { useAppStore, Job } from '@/lib/store';
 import { t, districts, categories } from '@/lib/i18n';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Search, MapPin, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,38 +9,66 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { JobsListSkeleton } from '@/components/LoadingSkeleton';
+import { debounce, DEBOUNCE_DELAY, PAGINATION } from '@/lib/constants';
 
 const JobsPage = () => {
   const { language } = useAppStore();
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [district, setDistrict] = useState('all');
   const [category, setCategory] = useState(searchParams.get('category') || 'all');
   const [postType, setPostType] = useState<'all' | 'hiring' | 'seeking'>('all');
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Debounced search
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchQuery(search);
+    }, DEBOUNCE_DELAY.SEARCH);
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [search]);
+
+  // Load jobs
   useEffect(() => {
     const load = async () => {
-      let query = supabase
-        .from('jobs')
-        .select('*')
-        .eq('status', 'active')
-        .order('is_featured', { ascending: false })
-        .order('created_at', { ascending: false });
+      setLoading(true);
+      try {
+        let query = supabase
+          .from('jobs')
+          .select('*')
+          .eq('status', 'active')
+          .order('is_featured', { ascending: false })
+          .order('created_at', { ascending: false });
 
-      if (district !== 'all') query = query.eq('district', district);
-      if (category !== 'all') query = query.eq('category', category);
-      if (postType !== 'all') query = query.eq('post_type', postType);
-      if (search) query = query.ilike('title', `%${search}%`);
+        if (district !== 'all') query = query.eq('district', district);
+        if (category !== 'all') query = query.eq('category', category);
+        if (postType !== 'all') query = query.eq('post_type', postType);
+        if (searchQuery) query = query.ilike('title', `%${searchQuery}%`);
 
-      const { data } = await query;
-      setJobs((data as Job[]) || []);
+        const { data } = await query;
+        setJobs((data as Job[]) || []);
+      } catch (error) {
+        console.error('Error loading jobs:', error);
+        setJobs([]);
+      } finally {
+        setLoading(false);
+      }
     };
     load();
-  }, [district, category, postType, search]);
+  }, [district, category, postType, searchQuery]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -84,11 +112,15 @@ const JobsPage = () => {
         </div>
 
         <div className="space-y-3">
-          {jobs.map((job, i) => (<JobCard key={job.id} job={job} index={i} />))}
-          {jobs.length === 0 && (
+          {loading ? (
+            <JobsListSkeleton count={PAGINATION.JOBS_PER_PAGE} />
+          ) : jobs.length > 0 ? (
+            jobs.map((job, i) => (<JobCard key={job.id} job={job} index={i} />))
+          ) : (
             <div className="text-center py-12 text-muted-foreground">
-              <span className="text-4xl block mb-2">🔍</span>
-              {language === 'en' ? 'No jobs found' : language === 'th' ? 'ไม่พบงาน' : 'ບໍ່ພົບວຽກ'}
+              <span className="text-5xl block mb-3">🔍</span>
+              <p className="text-lg mb-1">{language === 'en' ? 'No jobs found' : language === 'th' ? 'ไม่พบงาน' : 'ບໍ່ພົບວຽກ'}</p>
+              <p className="text-sm">{language === 'en' ? 'Try adjusting your filters' : language === 'th' ? 'ลองปรับตัวกรองของคุณใหม่' : 'ລອງປັ່ນການກັນກອງຂອງທ່ານ'}</p>
             </div>
           )}
         </div>

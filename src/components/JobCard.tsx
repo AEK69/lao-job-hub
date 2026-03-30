@@ -6,22 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
-
-function formatSalary(salary: string): string {
-  return Number(salary).toLocaleString();
-}
-
-function timeAgo(date: string, lang: string): string {
-  const diff = Date.now() - new Date(date).getTime();
-  const hours = Math.floor(diff / 3600000);
-  if (hours < 1) {
-    const mins = Math.floor(diff / 60000);
-    return lang === 'en' ? `${mins}m ago` : lang === 'th' ? `${mins} นาทีที่แล้ว` : `${mins} ນາທີກ່ອນ`;
-  }
-  if (hours < 24) return lang === 'en' ? `${hours}h ago` : lang === 'th' ? `${hours} ชม.ที่แล้ว` : `${hours} ຊມ.ກ່ອນ`;
-  const days = Math.floor(hours / 24);
-  return lang === 'en' ? `${days}d ago` : lang === 'th' ? `${days} วันที่แล้ว` : `${days} ມື້ກ່ອນ`;
-}
+import { formatSalary, timeAgo } from '@/lib/constants';
 
 export function JobCard({ job, index = 0 }: { job: Job; index?: number }) {
   const { language } = useAppStore();
@@ -54,7 +39,7 @@ export function JobCard({ job, index = 0 }: { job: Job; index?: number }) {
               </Badge>
               <span className="text-xs text-muted-foreground flex items-center gap-1">
                 <Clock className="h-3 w-3" />
-                {timeAgo(job.created_at, language)}
+                {timeAgo(job.created_at, (language as 'en' | 'th' | 'lo'))}
               </span>
             </div>
 

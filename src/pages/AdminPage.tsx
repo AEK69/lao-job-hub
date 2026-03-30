@@ -9,14 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Trash2, Briefcase, Users, TrendingUp, Coins, Search, ShieldCheck, ShieldAlert, Eye, CheckCircle, XCircle } from 'lucide-react';
+import { Trash2, Briefcase, Users, Coins, Search, ShieldCheck, Eye, CheckCircle, XCircle, Minus, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Navigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 interface UserProfile {
   id: string;
@@ -28,34 +27,22 @@ interface UserProfile {
   id_card_url: string | null;
   full_name: string | null;
   date_of_birth: string | null;
-  is_student: boolean;
-  guardian_name: string | null;
-  guardian_phone: string | null;
   address: string | null;
   avatar_url: string | null;
-  district: string | null;
   created_at: string;
 }
-
-interface CoinTx {
-  id: string;
-  amount: number;
-  type: string;
-  created_at: string;
-}
-
-const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'];
 
 const AdminPage = () => {
   const { language } = useAppStore();
   const { user } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
-  const [coinTxs, setCoinTxs] = useState<CoinTx[]>([]);
-  const [topupAmount, setTopupAmount] = useState<Record<string, string>>({});
-  const [searchUser, setSearchUser] = useState('');
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [kycDialog, setKycDialog] = useState<UserProfile | null>(null);
+  const [coinDialog, setCoinDialog] = useState<{ user: UserProfile; mode: 'add' | 'deduct' } | null>(null);
+  const [coinAmount, setCoinAmount] = useState('');
+  const [searchUser, setSearchUser] = useState('');
+  const [searchJob, setSearchJob] = useState('');
 
   const l = (lo: string, th: string, en: string) => language === 'en' ? en : language === 'th' ? th : lo;
 
@@ -67,11 +54,14 @@ const AdminPage = () => {
   const checkAdmin = async () => {
     const { data } = await supabase.rpc('has_role', { _user_id: user!.id, _role: 'admin' });
     setIsAdmin(!!data);
-    if (data) { loadJobs(); loadUsers(); loadCoinTxs(); }
+    if (data) {
+      loadJobs();
+      loadUsers();
+    }
   };
 
   const loadJobs = async () => {
-    const { data } = await supabase.from('jobs').select('*').order('created_at', { ascending: false });
+    const { data } = await supabase.from('jobs').select('*').order('created_at', { ascending: false }).limit(50);
     setJobs((data as Job[]) || []);
   };
 
@@ -80,47 +70,17 @@ const AdminPage = () => {
     setUsers((data as UserProfile[]) || []);
   };
 
-  const loadCoinTxs = async () => {
-    const { data } = await supabase.from('coin_transactions').select('id, amount, type, created_at').order('created_at', { ascending: false });
-    setCoinTxs((data as CoinTx[]) || []);
-  };
-
-  if (!user) return <Navigate to="/auth" />;
-  if (isAdmin === null) return <div className="min-h-screen flex items-center justify-center"><span className="animate-pulse text-2xl">⏳</span></div>;
-  if (!isAdmin) return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center">
-          <span className="text-5xl block mb-4">🔒</span>
-          <p className="text-muted-foreground">{l('ຕ້ອງເປັນ Admin', 'ต้องเป็นผู้ดูแลระบบ', 'Admin access required')}</p>
-        </div>
-      </div>
-      <Footer />
-    </div>
-  );
-
-  const handleDelete = async (id: string, title: string) => {
-    await supabase.from('jobs').delete().eq('id', id);
-    toast.success(`${t('admin.delete', language)}: ${title}`);
-    loadJobs();
-  };
-
-  const handleTopup = async (targetUserId: string) => {
-    const amount = parseInt(topupAmount[targetUserId] || '0');
-    if (!amount || amount <= 0) return;
-    const { error } = await supabase.rpc('admin_topup_coins', {
-      _target_user_id: targetUserId, _amount: amount, _description: `Admin top-up: ${amount} coins`,
-    });
+  const handleDeleteJob = async (id: string, title: string) => {
+    if (!window.confirm(`${l('ຕັ້ງໃຈລຶບ', 'ต้องการลบ', 'Delete')} "${title}"?`)) return;
+    const { error } = await supabase.from('jobs').delete().eq('id', id);
     if (error) toast.error(error.message);
     else {
-      toast.success(`${l('ເພີ່ມ', 'เพิ่ม', 'Added')} ${amount} 🪙`);
-      setTopupAmount(prev => ({ ...prev, [targetUserId]: '' }));
-      loadUsers();
+      toast.success(l('ລຶບແລ້ວ', 'ลบแล้ว', 'Deleted'));
+      loadJobs();
     }
   };
 
-  const handleKycAction = async (targetUserId: string, status: string) => {
+  const handleKycAction = async (targetUserId: string, status: 'approved' | 'rejected') => {
     const { error } = await supabase.rpc('admin_update_kyc', { _target_user_id: targetUserId, _status: status } as any);
     if (error) toast.error(error.message);
     else {
@@ -130,280 +90,327 @@ const AdminPage = () => {
     }
   };
 
-  const filteredUsers = users.filter(u =>
-    !searchUser || u.display_name.toLowerCase().includes(searchUser.toLowerCase()) || u.phone?.includes(searchUser)
-  );
-  const pendingKyc = users.filter(u => u.kyc_status === 'pending' && u.id_card_url);
+  const handleCoinTransaction = async () => {
+    if (!coinDialog || !coinAmount) return;
+    const amount = parseInt(coinAmount);
+    if (!amount || amount <= 0) {
+      toast.error(l('ກະລຸນາໃສ່ຈຳນວນຕາມສົມດຸນ', 'กรุณากรอกจำนวนให้ถูกต้อง', 'Please enter valid amount'));
+      return;
+    }
 
-  // Stats data
-  const jobsByDay = (() => {
-    const map: Record<string, number> = {};
-    jobs.forEach(j => {
-      const day = new Date(j.created_at).toLocaleDateString('en', { month: 'short', day: 'numeric' });
-      map[day] = (map[day] || 0) + 1;
+    const finalAmount = coinDialog.mode === 'add' ? amount : -amount;
+    const { error } = await supabase.rpc('admin_topup_coins', {
+      _target_user_id: coinDialog.user.user_id,
+      _amount: finalAmount,
+      _description: `Admin ${coinDialog.mode === 'add' ? 'top-up' : 'deduction'}: ${amount} coins`,
     });
-    return Object.entries(map).slice(-7).map(([date, count]) => ({ date, count }));
-  })();
 
-  const jobTypeData = [
-    { name: l('ຈ້າງງານ', 'จ้างงาน', 'Hiring'), value: jobs.filter(j => j.post_type === 'hiring').length },
-    { name: l('ຫາວຽກ', 'หางาน', 'Seeking'), value: jobs.filter(j => j.post_type === 'seeking').length },
-  ];
+    if (error) toast.error(error.message);
+    else {
+      toast.success(
+        coinDialog.mode === 'add'
+          ? l(`ເພີ່ມ ${amount}`, `เพิ่ม ${amount}`, `Added ${amount}`)
+          : l(`ຫັກ ${amount}`, `หัก ${amount}`, `Deducted ${amount}`)
+      );
+      setCoinDialog(null);
+      setCoinAmount('');
+      loadUsers();
+    }
+  };
 
-  const coinStats = (() => {
-    const topups = coinTxs.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
-    const spent = coinTxs.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
-    return [
-      { name: l('ເຕີມ', 'เติม', 'Top-up'), value: topups },
-      { name: l('ໃຊ້', 'ใช้', 'Spent'), value: spent },
-    ];
-  })();
-
-  const stats = [
-    { icon: <Briefcase className="h-5 w-5" />, value: jobs.length, label: t('admin.total', language), color: 'text-primary' },
-    { icon: <Users className="h-5 w-5" />, value: users.length, label: l('ຜູ້ໃຊ້ທັງໝົດ', 'ผู้ใช้ทั้งหมด', 'Total Users'), color: 'text-accent' },
-    { icon: <ShieldAlert className="h-5 w-5" />, value: pendingKyc.length, label: l('ລໍຖ້າ KYC', 'รอ KYC', 'Pending KYC'), color: 'text-orange-500' },
-    { icon: <Coins className="h-5 w-5" />, value: coinTxs.length, label: l('ທຸລະກຳ', 'ธุรกรรม', 'Transactions'), color: 'text-primary' },
-  ];
-
-  return (
+  if (!user) return <Navigate to="/admin-login" />;
+  if (isAdmin === null) return (
+    <div className="min-h-screen flex items-center justify-center"><span className="animate-pulse text-2xl">⏳</span></div>
+  );
+  if (!isAdmin) return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <div className="container py-6 flex-1">
-        <h1 className="text-2xl font-bold mb-6">⚙️ {t('admin.title', language)}</h1>
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center"><span className="text-5xl block mb-4">🔒</span>
+          <p className="text-muted-foreground">{l('ຕ້ອງເປັນ Admin', 'ต้องเป็นผู้ดูแลระบบ', 'Admin access required')}</p>
+        </div>
+      </div>
+      <Footer />
+    </div>
+  );
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          {stats.map((stat, i) => (
-            <Card key={i} className="p-4 text-center">
-              <div className={`flex justify-center mb-1 ${stat.color}`}>{stat.icon}</div>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <div className="text-xs text-muted-foreground">{stat.label}</div>
-            </Card>
-          ))}
+  const pendingKyc = users.filter(u => u.kyc_status === 'pending' && u.id_card_url);
+  const filteredUsers = users.filter(u =>
+    !searchUser || u.display_name?.toLowerCase().includes(searchUser.toLowerCase()) || u.phone?.includes(searchUser)
+  );
+  const filteredJobs = jobs.filter(j =>
+    !searchJob || j.title.toLowerCase().includes(searchJob.toLowerCase())
+  );
+
+  return (
+    <div className="min-h-screen flex flex-col bg-white">
+      <Header />
+      <div className="container py-6 flex-1 max-w-6xl">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold">{l('ສະ​ຕະຣະບົບ Admin', 'ระบบ Admin', 'Admin System')}</h1>
+          <p className="text-muted-foreground text-sm">{l('ຈັດການຜູ້ໃຊ້ KYC ແລະວຽກ', 'จัดการผู้ใช้ KYC และงาน', 'Manage users, KYC and jobs')}</p>
         </div>
 
-        <Tabs defaultValue="stats">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="stats">📊 {l('ສະຖິຕິ', 'สถิติ', 'Stats')}</TabsTrigger>
-            <TabsTrigger value="kyc">🛡️ KYC {pendingKyc.length > 0 && <Badge variant="destructive" className="ml-1 text-[10px] h-4 px-1">{pendingKyc.length}</Badge>}</TabsTrigger>
-            <TabsTrigger value="jobs">📋 {t('admin.jobs', language)}</TabsTrigger>
-            <TabsTrigger value="users">👥 {l('ຜູ້ໃຊ້', 'ผู้ใช้', 'Users')}</TabsTrigger>
+        <Tabs defaultValue="users" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-3 bg-slate-200">
+            <TabsTrigger value="users" className="gap-2">
+              <Users className="h-4 w-4" />
+              {l('ຜູ້ໃຊ້', 'ผู้ใช้', 'Users')} ({users.length})
+            </TabsTrigger>
+            <TabsTrigger value="kyc" className="gap-2">
+              <ShieldCheck className="h-4 w-4" />
+              KYC ({pendingKyc.length})
+            </TabsTrigger>
+            <TabsTrigger value="jobs" className="gap-2">
+              <Briefcase className="h-4 w-4" />
+              {l('ວຽກ', 'งาน', 'Jobs')} ({jobs.length})
+            </TabsTrigger>
           </TabsList>
 
-          {/* Stats Tab */}
-          <TabsContent value="stats">
-            <div className="grid md:grid-cols-2 gap-6">
-              <Card className="p-4">
-                <h3 className="font-semibold mb-3">{l('ວຽກຕາມວັນ', 'งานตามวัน', 'Jobs by Day')}</h3>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={jobsByDay}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                    <YAxis allowDecimals={false} />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </Card>
-
-              <Card className="p-4">
-                <h3 className="font-semibold mb-3">{l('ປະເພດວຽກ', 'ประเภทงาน', 'Job Types')}</h3>
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie data={jobTypeData} cx="50%" cy="50%" outerRadius={70} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
-                      {jobTypeData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i]} />)}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </Card>
-
-              <Card className="p-4">
-                <h3 className="font-semibold mb-3">{l('ຫຼຽນ', 'เหรียญ', 'Coins')}</h3>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={coinStats}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis allowDecimals={false} />
-                    <Tooltip />
-                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                      {coinStats.map((_, i) => <Cell key={i} fill={CHART_COLORS[i + 2]} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </Card>
-
-              <Card className="p-4">
-                <h3 className="font-semibold mb-3">{l('ຜູ້ໃຊ້ໃໝ່ (7 ມື້)', 'ผู้ใช้ใหม่ (7 วัน)', 'New Users (7 days)')}</h3>
-                <div className="text-center py-8">
-                  <div className="text-4xl font-bold text-primary">
-                    {users.filter(u => new Date(u.created_at) > new Date(Date.now() - 7 * 86400000)).length}
-                  </div>
-                  <div className="text-muted-foreground text-sm mt-1">{l('ຜູ້ໃຊ້ໃໝ່', 'ผู้ใช้ใหม่', 'new users')}</div>
-                </div>
-              </Card>
+          {/* Users Management */}
+          <TabsContent value="users" className="space-y-4">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={l('ຄົ້ນຫາ...', 'ค้นหา...', 'Search...')}
+                  value={searchUser}
+                  onChange={e => setSearchUser(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
-          </TabsContent>
 
-          {/* KYC Tab */}
-          <TabsContent value="kyc">
-            <Card className="divide-y">
-              {pendingKyc.length === 0 && (
-                <div className="p-8 text-center text-muted-foreground">
-                  ✅ {l('ບໍ່ມີ KYC ລໍຖ້າ', 'ไม่มี KYC รอ', 'No pending KYC')}
-                </div>
-              )}
-              {pendingKyc.map(u => (
-                <div key={u.id} className="p-4 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={u.avatar_url || ''} />
-                      <AvatarFallback>{(u.display_name || '?')[0]}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="font-medium">{u.full_name || u.display_name}</div>
-                      <div className="text-xs text-muted-foreground">{u.phone || '—'} • {u.date_of_birth || '—'}</div>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => setKycDialog(u)}>
-                      <Eye className="h-4 w-4 mr-1" /> {l('ເບິ່ງ', 'ดู', 'View')}
-                    </Button>
-                    <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleKycAction(u.user_id, 'approved')}>
-                      <CheckCircle className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => handleKycAction(u.user_id, 'rejected')}>
-                      <XCircle className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </Card>
-          </TabsContent>
+            <div className="space-y-2">
+              {filteredUsers.length === 0 ? (
+                <Card className="p-8 text-center text-muted-foreground">{l('ບໍ່ມີຜູ້ໃຊ້', 'ไม่พบผู้ใช้', 'No users')}</Card>
+              ) : (
+                filteredUsers.map((user, idx) => (
+                  <motion.div key={user.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.05 }}>
+                    <Card className="p-4">
+                      <div className="flex items-center justify-between gap-4 flex-wrap">
+                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={user.avatar_url || ''} />
+                            <AvatarFallback>{(user.display_name || '?')[0].toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <div className="font-semibold">{user.display_name || '—'}</div>
+                            <div className="text-sm text-muted-foreground">{user.phone || '—'}</div>
+                          </div>
+                          <Badge className={user.kyc_status === 'approved' ? 'bg-green-600' : user.kyc_status === 'rejected' ? 'bg-red-600' : 'bg-yellow-600'}>
+                            {user.kyc_status}
+                          </Badge>
+                        </div>
 
-          {/* Jobs Tab */}
-          <TabsContent value="jobs">
-            <Card className="divide-y">
-              {jobs.map((job, i) => {
-                const district = districts.find(d => d.id === job.district);
-                return (
-                  <motion.div key={job.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
-                    className="p-4 flex items-center justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium truncate">{job.title}</span>
-                        <Badge variant={job.post_type === 'hiring' ? 'default' : 'secondary'} className="text-xs shrink-0">
-                          {t(job.post_type === 'hiring' ? 'job.type.employer' : 'job.type.worker', language)}
-                        </Badge>
-                        {job.status === 'cancelled' && <Badge variant="destructive" className="text-xs">❌</Badge>}
-                        {job.is_urgent && <Badge variant="destructive" className="text-xs shrink-0">🔥</Badge>}
-                        {job.is_featured && <Badge className="text-xs shrink-0 bg-accent text-accent-foreground">⭐</Badge>}
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="gap-1 font-semibold">
+                            <Coins className="h-4 w-4" /> {user.coin_balance}
+                          </Badge>
+                          <Button size="sm" className="bg-green-600 hover:bg-green-700 gap-1" onClick={() => { setCoinDialog({ user, mode: 'add' }); setCoinAmount(''); }}>
+                            <Plus className="h-4 w-4" /> {l('ເພີ່ມ', 'เพิ่ม', 'Add')}
+                          </Button>
+                          <Button size="sm" className="bg-red-600 hover:bg-red-700 gap-1" onClick={() => { setCoinDialog({ user, mode: 'deduct' }); setCoinAmount(''); }}>
+                            <Minus className="h-4 w-4" /> {l('ຫັກ', 'หัก', 'Deduct')}
+                          </Button>
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {job.poster_name} • {district?.[language] || district?.lo} • {job.phone}
-                      </div>
-                    </div>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 shrink-0" onClick={() => handleDelete(job.id, job.title)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    </Card>
                   </motion.div>
-                );
-              })}
-              {jobs.length === 0 && (
-                <div className="p-8 text-center text-muted-foreground">
-                  {l('ຍັງບໍ່ມີວຽກ', 'ยังไม่มีงาน', 'No jobs yet')}
-                </div>
+                ))
               )}
-            </Card>
+            </div>
           </TabsContent>
 
-          {/* Users Tab */}
-          <TabsContent value="users">
-            <div className="mb-4 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder={l('ຄົ້ນຫາຜູ້ໃຊ້...', 'ค้นหาผู้ใช้...', 'Search users...')}
-                value={searchUser} onChange={e => setSearchUser(e.target.value)} className="pl-9"
-              />
-            </div>
-            <Card className="divide-y">
-              {filteredUsers.map(u => (
-                <div key={u.id} className="p-4 flex items-center justify-between gap-3 flex-wrap">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={u.avatar_url || ''} />
-                      <AvatarFallback>{(u.display_name || '?')[0]}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="font-medium">{u.display_name || '—'}</div>
-                      <div className="text-xs text-muted-foreground">{u.phone || '—'}</div>
+          {/* KYC Management */}
+          <TabsContent value="kyc" className="space-y-2">
+            {pendingKyc.length === 0 ? (
+              <Card className="p-8 text-center text-muted-foreground">{l('ບໍ່ມີ KYC ລໍຖ້າ', 'ไม่มี KYC รอ', 'No pending KYC')}</Card>
+            ) : (
+              pendingKyc.map((user, idx) => (
+                <motion.div key={user.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.05 }}>
+                  <Card className="p-4">
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={user.avatar_url || ''} />
+                          <AvatarFallback>{(user.display_name || '?')[0].toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <div className="font-semibold">{user.full_name || user.display_name || '—'}</div>
+                          <div className="text-sm text-muted-foreground">{user.phone || '—'}</div>
+                        </div>
+                        <Badge className="bg-orange-600">{l('ລໍຖ້າ', 'รอ', 'Pending')}</Badge>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setKycDialog(user)} className="gap-1">
+                          <Eye className="h-4 w-4" /> {l('ເບິ່ງ', 'ดู', 'View')}
+                        </Button>
+                        <Button size="sm" className="bg-green-600 hover:bg-green-700 gap-1" onClick={() => handleKycAction(user.user_id, 'approved')}>
+                          <CheckCircle className="h-4 w-4" /> {l('ຢືນຢັນ', 'ยืนยัน', 'Approve')}
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => handleKycAction(user.user_id, 'rejected')} className="gap-1">
+                          <XCircle className="h-4 w-4" /> {l('ປະຕິເສດ', 'ปฏิเสธ', 'Reject')}
+                        </Button>
+                      </div>
                     </div>
-                    <Badge variant={u.kyc_status === 'approved' ? 'default' : u.kyc_status === 'rejected' ? 'destructive' : 'secondary'} className="text-xs">
-                      {u.kyc_status === 'approved' ? '✅' : u.kyc_status === 'rejected' ? '❌' : '⏳'} {u.kyc_status}
-                    </Badge>
-                  </div>
-                  <Badge variant="secondary" className="gap-1">🪙 {u.coin_balance}</Badge>
-                  <div className="flex items-center gap-2">
-                    <Input type="number" className="w-20 h-8" placeholder="0"
-                      value={topupAmount[u.user_id] || ''}
-                      onChange={e => setTopupAmount(prev => ({ ...prev, [u.user_id]: e.target.value }))}
-                    />
-                    <Button size="sm" onClick={() => handleTopup(u.user_id)} className="gap-1">
-                      <Coins className="h-3 w-3" /> {l('ເຕີມ', 'เติม', 'Add')}
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </Card>
+                  </Card>
+                </motion.div>
+              ))
+            )}
+          </TabsContent>
+
+          {/* Jobs Management */}
+          <TabsContent value="jobs" className="space-y-4">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={l('ຄົ້ນຫາວຽກ...', 'ค้นหางาน...', 'Search jobs...')}
+                  value={searchJob}
+                  onChange={e => setSearchJob(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {filteredJobs.length === 0 ? (
+                <Card className="p-8 text-center text-muted-foreground">{l('ບໍ່ມີວຽກ', 'ไม่มีงาน', 'No jobs')}</Card>
+              ) : (
+                filteredJobs.map((job, idx) => {
+                  const district = districts.find(d => d.id === job.district);
+                  return (
+                    <motion.div key={job.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.05 }}>
+                      <Card className="p-4">
+                        <div className="flex items-center justify-between gap-4 flex-wrap">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <span className="font-semibold">{job.title}</span>
+                              <Badge variant={job.post_type === 'hiring' ? 'default' : 'secondary'} className="text-xs">
+                                {t(job.post_type === 'hiring' ? 'job.type.employer' : 'job.type.worker', language)}
+                              </Badge>
+                              {job.status === 'cancelled' && <Badge variant="destructive" className="text-xs">❌</Badge>}
+                              {job.is_urgent && <Badge className="bg-red-600 text-xs">🔥</Badge>}
+                              {job.is_featured && <Badge className="bg-purple-600 text-xs">⭐</Badge>}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {job.poster_name} • {district?.[language] || district?.lo} • {job.phone}
+                            </div>
+                          </div>
+
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="gap-1"
+                            onClick={() => handleDeleteJob(job.id, job.title)}
+                          >
+                            <Trash2 className="h-4 w-4" /> {l('ລຶບ', 'ลบ', 'Delete')}
+                          </Button>
+                        </div>
+                      </Card>
+                    </motion.div>
+                  );
+                })
+              )}
+            </div>
           </TabsContent>
         </Tabs>
       </div>
       <Footer />
 
       {/* KYC Detail Dialog */}
-      <Dialog open={!!kycDialog} onOpenChange={() => setKycDialog(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>🛡️ {l('ຂໍ້ມູນ KYC', 'ข้อมูล KYC', 'KYC Details')}</DialogTitle>
-          </DialogHeader>
-          {kycDialog && (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div><span className="text-muted-foreground">{l('ຊື່ເຕັມ', 'ชื่อเต็ม', 'Full Name')}:</span><br /><strong>{kycDialog.full_name || '—'}</strong></div>
-                <div><span className="text-muted-foreground">{l('ວັນເກີດ', 'วันเกิด', 'DOB')}:</span><br /><strong>{kycDialog.date_of_birth || '—'}</strong></div>
-                <div><span className="text-muted-foreground">{l('ເບີໂທ', 'เบอร์โทร', 'Phone')}:</span><br /><strong>{kycDialog.phone || '—'}</strong></div>
-                <div><span className="text-muted-foreground">{l('ເມືອງ', 'เมือง', 'District')}:</span><br /><strong>{kycDialog.district || '—'}</strong></div>
-                <div className="col-span-2"><span className="text-muted-foreground">{l('ທີ່ຢູ່', 'ที่อยู่', 'Address')}:</span><br /><strong>{kycDialog.address || '—'}</strong></div>
-                {kycDialog.is_student && <div className="col-span-2"><Badge>🎓 {l('ນັກສຶກສາ', 'นักศึกษา', 'Student')}</Badge></div>}
-                {kycDialog.guardian_name && (
-                  <div className="col-span-2">
-                    <span className="text-muted-foreground">{l('ຜູ້ປົກຄອງ', 'ผู้ปกครอง', 'Guardian')}:</span><br />
-                    <strong>{kycDialog.guardian_name} ({kycDialog.guardian_phone})</strong>
-                  </div>
-                )}
+      {kycDialog && (
+        <Dialog open={!!kycDialog} onOpenChange={() => setKycDialog(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5" />
+                {l('ລາຍລະອຽດ KYC', 'รายละเอียด KYC', 'KYC Details')}
+              </DialogTitle>
+              <DialogDescription>{kycDialog.full_name || kycDialog.display_name}</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-slate-100 p-3 rounded">
+                  <div className="text-xs text-muted-foreground">{l('ຊື່ເຕັມ', 'ชื่อเต็ม', 'Full Name')}</div>
+                  <div className="font-semibold">{kycDialog.full_name || '—'}</div>
+                </div>
+                <div className="bg-slate-100 p-3 rounded">
+                  <div className="text-xs text-muted-foreground">{l('ວັນເກີດ', 'วันเกิด', 'DOB')}</div>
+                  <div className="font-semibold">{kycDialog.date_of_birth || '—'}</div>
+                </div>
+                <div className="bg-slate-100 p-3 rounded col-span-2">
+                  <div className="text-xs text-muted-foreground">{l('ທີ່ຢູ່', 'ที่อยู่', 'Address')}</div>
+                  <div className="font-semibold">{kycDialog.address || '—'}</div>
+                </div>
               </div>
+
               {kycDialog.id_card_url && (
                 <div>
-                  <span className="text-sm text-muted-foreground">{l('ບັດປະຈຳຕົວ', 'บัตรประจำตัว', 'ID Card')}:</span>
-                  <img
-                    src={supabase.storage.from('id-cards').getPublicUrl(kycDialog.id_card_url).data.publicUrl}
-                    alt="ID Card"
-                    className="mt-1 rounded-lg max-h-60 w-full object-contain border"
-                  />
+                  <div className="text-sm font-semibold mb-2">{l('ບັດປະຈຳຕົວ', 'บัตรประจำตัว', 'ID Card')}</div>
+                  <img src={kycDialog.id_card_url} alt="ID" className="rounded border w-full max-h-80 object-contain" />
                 </div>
               )}
-              <div className="flex gap-2 pt-2">
-                <Button className="flex-1 bg-green-600 hover:bg-green-700" onClick={() => handleKycAction(kycDialog.user_id, 'approved')}>
-                  <CheckCircle className="h-4 w-4 mr-1" /> {l('ຢືນຢັນ', 'ยืนยัน', 'Approve')}
-                </Button>
-                <Button variant="destructive" className="flex-1" onClick={() => handleKycAction(kycDialog.user_id, 'rejected')}>
-                  <XCircle className="h-4 w-4 mr-1" /> {l('ປະຕິເສດ', 'ปฏิเสธ', 'Reject')}
-                </Button>
+            </div>
+
+            <DialogFooter className="flex gap-2">
+              <Button variant="outline" onClick={() => setKycDialog(null)}>{l('ປິດ', 'ปิด', 'Close')}</Button>
+              <Button className="bg-green-600 hover:bg-green-700 gap-1" onClick={() => handleKycAction(kycDialog.user_id, 'approved')}>
+                <CheckCircle className="h-4 w-4" /> {l('ຢືນຢັນ', 'ยืนยัน', 'Approve')}
+              </Button>
+              <Button variant="destructive" onClick={() => handleKycAction(kycDialog.user_id, 'rejected')} className="gap-1">
+                <XCircle className="h-4 w-4" /> {l('ປະຕິເສດ', 'ปฏิเสธ', 'Reject')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Coin Dialog */}
+      {coinDialog && (
+        <Dialog open={!!coinDialog} onOpenChange={() => setCoinDialog(null)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Coins className="h-5 w-5" />
+                {coinDialog.mode === 'add' ? l('ເພີ່ມ', 'เพิ่ม', 'Add') : l('ຫັກ', 'หัก', 'Deduct')} {l('ເຣື່ອ', 'เหรียญ', 'Coins')}
+              </DialogTitle>
+              <DialogDescription>{coinDialog.user.display_name}</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="bg-slate-100 p-4 rounded text-center">
+                <div className="text-sm text-muted-foreground mb-1">{l('ລະວາງປະຈຸບັນ', 'จำนวนปัจจุบัน', 'Current Balance')}</div>
+                <div className="text-3xl font-bold">{coinDialog.user.coin_balance}</div>
+              </div>
+              <div>
+                <label className="text-sm font-semibold mb-2 block">{l('ຈຳນວນ', 'จำนวน', 'Amount')}</label>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={coinAmount}
+                  onChange={e => setCoinAmount(e.target.value)}
+                  className="text-lg h-10"
+                />
               </div>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+
+            <DialogFooter className="flex gap-2">
+              <Button variant="outline" onClick={() => setCoinDialog(null)}>{l('ຍົກເລີກ', 'ยกเลิก', 'Cancel')}</Button>
+              <Button
+                className={coinDialog.mode === 'add' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
+                onClick={handleCoinTransaction}
+              >
+                {coinDialog.mode === 'add' ? l('ເພີ່ມ', 'เพิ่ม', 'Add') : l('ຫັກ', 'หัก', 'Deduct')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };

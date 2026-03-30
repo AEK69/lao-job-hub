@@ -14,6 +14,8 @@ import { Job } from '@/lib/store';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { JobsListSkeleton } from '@/components/LoadingSkeleton';
+import { PAGINATION } from '@/lib/constants';
 
 const Index = () => {
   const { language } = useAppStore();
@@ -21,18 +23,26 @@ const Index = () => {
   const [district, setDistrict] = useState('all');
   const [jobs, setJobs] = useState<Job[]>([]);
   const [totalJobs, setTotalJobs] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
-      const { data, count } = await supabase
-        .from('jobs')
-        .select('*', { count: 'exact' })
-        .eq('status', 'active')
-        .order('is_featured', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(6);
-      setJobs((data as Job[]) || []);
-      setTotalJobs(count || 0);
+      setLoading(true);
+      try {
+        const { data, count } = await supabase
+          .from('jobs')
+          .select('*', { count: 'exact' })
+          .eq('status', 'active')
+          .order('is_featured', { ascending: false })
+          .order('created_at', { ascending: false })
+          .limit(PAGINATION.JOBS_HOME_PREVIEW);
+        setJobs((data as Job[]) || []);
+        setTotalJobs(count || 0);
+      } catch (error) {
+        console.error('Error loading jobs:', error);
+      } finally {
+        setLoading(false);
+      }
     };
     load();
   }, []);
@@ -136,13 +146,16 @@ const Index = () => {
           </div>
 
           <div className="space-y-3">
-            {filtered.map((job, i) => (
-              <JobCard key={job.id} job={job} index={i} />
-            ))}
-            {filtered.length === 0 && (
+            {loading ? (
+              <JobsListSkeleton count={PAGINATION.JOBS_HOME_PREVIEW} />
+            ) : filtered.length > 0 ? (
+              filtered.map((job, i) => (
+                <JobCard key={job.id} job={job} index={i} />
+              ))
+            ) : (
               <div className="text-center py-12 text-muted-foreground">
-                <span className="text-4xl block mb-2">🔍</span>
-                {language === 'en' ? 'No jobs found' : language === 'th' ? 'ไม่พบงาน' : 'ບໍ່ພົບວຽກ'}
+                <span className="text-5xl block mb-3">🔍</span>
+                <p className="text-lg">{language === 'en' ? 'No jobs found' : language === 'th' ? 'ไม่พบงาน' : 'ບໍ່ພົບວຽກ'}</p>
               </div>
             )}
           </div>

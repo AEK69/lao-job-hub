@@ -12,7 +12,7 @@ import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Coins, User, Save, Briefcase, ArrowUpRight, ArrowDownLeft, Camera, Clock, ShieldCheck, ShieldAlert, XCircle } from 'lucide-react';
+import { Coins, User, Save, Briefcase, ArrowUpRight, ArrowDownLeft, Camera, Clock, ShieldCheck, ShieldAlert, XCircle, Upload, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Link, Navigate } from 'react-router-dom';
@@ -141,9 +141,35 @@ const ProfilePage = () => {
             </div>
           </div>
 
-          <Tabs defaultValue="profile">
-            <TabsList className="grid w-full grid-cols-3">
+          {/* KYC Alert */}
+          {profile?.kyc_status !== 'approved' && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg"
+            >
+              <div className="flex items-start gap-3">
+                <div className="text-2xl">⚠️</div>
+                <div>
+                  <h3 className="font-semibold text-yellow-900">
+                    {l('ສຳເລັດການ KYC', 'สำเร็จการ KYC', 'Complete KYC Verification')}
+                  </h3>
+                  <p className="text-sm text-yellow-800 mt-1">
+                    {l(
+                      'ທ່ານຕ້ອງສົ່ງເອກະສານຢືນຢັນຕົວຕົນ ເພື່ອໃຊ້ງາน ຫາວຽກ ຫຼື ຈ້າງວຽກໄດ້',
+                      'คุณต้องยืนยันตัวตนเพื่อค้นหางานหรือโพสต์งาน',
+                      'You need to verify your identity to post or search jobs'
+                    )}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          <Tabs defaultValue={profile?.kyc_status !== 'approved' ? 'kyc' : 'profile'}>
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="profile">👤 {l('ຂໍ້ມູນ', 'ข้อมูล', 'Info')}</TabsTrigger>
+              <TabsTrigger value="kyc">🛡️ KYC</TabsTrigger>
               <TabsTrigger value="jobs">📋 {l('ວຽກຂອງຂ້ອຍ', 'งานของฉัน', 'My Jobs')}</TabsTrigger>
               <TabsTrigger value="history">🪙 {l('ປະຫວັດ', 'ประวัติ', 'History')}</TabsTrigger>
             </TabsList>
@@ -174,6 +200,68 @@ const ProfilePage = () => {
                 <Button className="w-full gap-2" onClick={handleSave} disabled={saving}>
                   <Save className="h-4 w-4" /> {l('ບັນທຶກ', 'บันทึก', 'Save')}
                 </Button>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="kyc">
+              <Card className="p-6 text-center space-y-6">
+                {profile?.kyc_status === 'approved' ? (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                    <div className="flex justify-center mb-4">
+                      <div className="bg-green-100 rounded-full p-4">
+                        <CheckCircle className="h-12 w-12 text-green-600" />
+                      </div>
+                    </div>
+                    <h3 className="text-xl font-bold text-green-600">
+                      {l('ຢືນຢັນແລ້ວ!', 'ยืนยันแล้ว!', 'Verified!')}
+                    </h3>
+                    <p className="text-muted-foreground mt-3">
+                      {l('ທ່ານໄດ້ຮັບອະນຸມັດ ສາມາດໃຊ້ງານຕ່າງໆໄດ້', 'คุณได้รับการอนุมัติ สามารถใช้งานได้', 'You are verified and can use all features')}
+                    </p>
+                  </motion.div>
+                ) : profile?.kyc_status === 'rejected' ? (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                    <div className="flex justify-center mb-4">
+                      <div className="bg-red-100 rounded-full p-4">
+                        <ShieldAlert className="h-12 w-12 text-red-600" />
+                      </div>
+                    </div>
+                    <h3 className="text-xl font-bold text-red-600">
+                      {l('ປະຕິເສດ', 'ถูกปฏิเสธ', 'Rejected')}
+                    </h3>
+                    <p className="text-muted-foreground">
+                      {l('ເອກະສານບໍ່ອາດຕໍ່ໆ. ກະລຸນາລອງອັບໂຫລດເຣື່ອ', 'เอกสารไม่ตรงตามเงื่อนไข', 'Document did not meet requirements')}
+                    </p>
+                    <Link to="/kyc">
+                      <Button className="w-full gap-2">
+                        <Upload className="h-4 w-4" />
+                        {l('ອັບໂຫລດຄືນໃໝ່', 'อัปโหลดอีกครั้ง', 'Upload Again')}
+                      </Button>
+                    </Link>
+                  </motion.div>
+                ) : (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                    <div className="flex justify-center mb-4">
+                      <div className="bg-blue-100 rounded-full p-4">
+                        <Clock className="h-12 w-12 text-blue-600" />
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold mb-2">
+                        {l('ລໍຖ້າການກວດສອບ', 'รอการตรวจสอบ', 'Pending Verification')}
+                      </h3>
+                      <p className="text-muted-foreground text-sm">
+                        {l('ກະລຸນາສໍາເລັດຂັ້ນຕອນ KYC ເພື່ອໃຊ້ງານທຸກລາຍການ', 'โปรดสำเร็จยืนยันตัวตนเพื่อใช้งานได้', 'Complete KYC verification to use all features')}
+                      </p>
+                    </div>
+                    <Link to="/kyc" className="block">
+                      <Button className="w-full gap-2 bg-blue-600 hover:bg-blue-700">
+                        <ShieldCheck className="h-4 w-4" />
+                        {l('ສາທາລະຂໍ້ມູນກະຕົວຕົນ', 'ยืนยันตัวตน', 'Verify Identity')}
+                      </Button>
+                    </Link>
+                  </motion.div>
+                )}
               </Card>
             </TabsContent>
 

@@ -12,6 +12,8 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useState, useEffect } from 'react';
+import { JobDetailSkeleton } from '@/components/LoadingSkeleton';
+import { formatSalary } from '@/lib/constants';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -21,10 +23,6 @@ L.Icon.Default.mergeOptions({
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
-
-function formatSalary(salary: string): string {
-  return Number(salary).toLocaleString();
-}
 
 const JobDetailPage = () => {
   const { id } = useParams();
@@ -46,7 +44,9 @@ const JobDetailPage = () => {
   if (loading) return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <div className="flex-1 flex items-center justify-center"><span className="text-2xl animate-pulse">⏳</span></div>
+      <div className="container py-6 flex-1">
+        <JobDetailSkeleton />
+      </div>
       <Footer />
     </div>
   );
