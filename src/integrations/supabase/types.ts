@@ -98,6 +98,7 @@ export type Database = {
           description: string
           district: string
           id: string
+          image_url: string | null
           is_featured: boolean
           is_urgent: boolean
           lat: number | null
@@ -121,6 +122,7 @@ export type Database = {
           description: string
           district: string
           id?: string
+          image_url?: string | null
           is_featured?: boolean
           is_urgent?: boolean
           lat?: number | null
@@ -144,6 +146,7 @@ export type Database = {
           description?: string
           district?: string
           id?: string
+          image_url?: string | null
           is_featured?: boolean
           is_urgent?: boolean
           lat?: number | null
@@ -199,37 +202,61 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address: string | null
           avatar_url: string | null
           bio: string | null
           coin_balance: number
           created_at: string
+          date_of_birth: string | null
           display_name: string
           district: string | null
+          full_name: string | null
+          guardian_name: string | null
+          guardian_phone: string | null
           id: string
+          id_card_url: string | null
+          is_student: boolean | null
+          kyc_status: string
           phone: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          address?: string | null
           avatar_url?: string | null
           bio?: string | null
           coin_balance?: number
           created_at?: string
+          date_of_birth?: string | null
           display_name?: string
           district?: string | null
+          full_name?: string | null
+          guardian_name?: string | null
+          guardian_phone?: string | null
           id?: string
+          id_card_url?: string | null
+          is_student?: boolean | null
+          kyc_status?: string
           phone?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          address?: string | null
           avatar_url?: string | null
           bio?: string | null
           coin_balance?: number
           created_at?: string
+          date_of_birth?: string | null
           display_name?: string
           district?: string | null
+          full_name?: string | null
+          guardian_name?: string | null
+          guardian_phone?: string | null
           id?: string
+          id_card_url?: string | null
+          is_student?: boolean | null
+          kyc_status?: string
           phone?: string | null
           updated_at?: string
           user_id?: string
@@ -265,6 +292,10 @@ export type Database = {
           _description?: string
           _target_user_id: string
         }
+        Returns: undefined
+      }
+      admin_update_kyc: {
+        Args: { _status: string; _target_user_id: string }
         Returns: undefined
       }
       has_role: {
