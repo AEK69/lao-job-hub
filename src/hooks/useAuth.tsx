@@ -82,6 +82,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Poll for KYC status changes (notification)
+  useEffect(() => {
+    if (!user || !profile) return;
+    const prevStatus = profile.kyc_status;
+    const interval = setInterval(async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('kyc_status')
+        .eq('user_id', user.id)
+        .single();
+      if (data && data.kyc_status !== prevStatus) {
+        await fetchProfile(user.id);
+        if (data.kyc_status === 'approved') {
+          // Dynamic import to avoid circular deps
+          import('sonner').then(({ toast }) => {
+            toast.success('🎉 ບັນຊີຂອງທ່ານໄດ້ຮັບການຢືນຢັນແລ້ວ! / Your account has been verified!');
+          });
+        } else if (data.kyc_status === 'rejected') {
+          import('sonner').then(({ toast }) => {
+            toast.error('❌ ການຢືນຢັນຖືກປະຕິເສດ / Verification rejected');
+          });
+        }
+      }
+    }, 30000); // Check every 30s
+    return () => clearInterval(interval);
+  }, [user, profile?.kyc_status]);
+
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
