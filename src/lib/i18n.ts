@@ -22,7 +22,7 @@ export const translations = {
   'search.btn': { lo: 'ຄົ້ນຫາ', th: 'ค้นหา', en: 'Search' },
 
   // Job card
-  'job.salary': { lo: 'ເງິນເດືອນ', th: 'เงินเดือน', en: 'Salary' },
+  'job.salary': { lo: 'ຄ່າຕອບແທນ', th: 'ค่าตอบแทน', en: 'Compensation' },
   'job.location': { lo: 'ສະຖານທີ່', th: 'สถานที่', en: 'Location' },
   'job.urgent': { lo: 'ດ່ວນ', th: 'ด่วน', en: 'Urgent' },
   'job.new': { lo: 'ໃໝ່', th: 'ใหม่', en: 'New' },

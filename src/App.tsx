@@ -16,6 +16,7 @@ import ChatPage from "./pages/ChatPage.tsx";
 import ProfilePage from "./pages/ProfilePage.tsx";
 import KYCPage from "./pages/KYCPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import PublicProfilePage from "./pages/PublicProfilePage.tsx";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,7 @@ const App = () => (
               <Route path="/chat" element={<ChatPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/kyc" element={<KYCPage />} />
+              <Route path="/user/:userId" element={<PublicProfilePage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
