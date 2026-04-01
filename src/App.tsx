@@ -17,6 +17,7 @@ import ProfilePage from "./pages/ProfilePage.tsx";
 import KYCPage from "./pages/KYCPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import PublicProfilePage from "./pages/PublicProfilePage.tsx";
+import { BottomNavigation } from "@/components/BottomNavigation";
 
 const queryClient = new QueryClient();
 
@@ -28,20 +29,23 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/jobs" element={<JobsPage />} />
-              <Route path="/jobs/:id" element={<JobDetailPage />} />
-              <Route path="/post" element={<PostJobPage />} />
-              <Route path="/admin" element={<AdminPage />} />
-              <Route path="/admin-login" element={<AdminLoginPage />} />
-              <Route path="/auth" element={<AuthPage />} />
-              <Route path="/chat" element={<ChatPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/kyc" element={<KYCPage />} />
-              <Route path="/user/:userId" element={<PublicProfilePage />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <div className="pb-16 md:pb-0 min-h-screen flex flex-col">
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/jobs" element={<JobsPage />} />
+                <Route path="/jobs/:id" element={<JobDetailPage />} />
+                <Route path="/post" element={<PostJobPage />} />
+                <Route path="/admin" element={<AdminPage />} />
+                <Route path="/admin-login" element={<AdminLoginPage />} />
+                <Route path="/auth" element={<AuthPage />} />
+                <Route path="/chat" element={<ChatPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/kyc" element={<KYCPage />} />
+                <Route path="/user/:userId" element={<PublicProfilePage />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+              <BottomNavigation />
+            </div>
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>

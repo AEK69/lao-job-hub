@@ -18,6 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Coins, Star, Upload, ImageIcon } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { JOB_POSTING_COSTS, calculateJobPostingCost } from '@/lib/constants';
+import { LocationPicker } from '@/components/LocationPicker';
 
 const PostJobPage = () => {
   const { language } = useAppStore();
@@ -32,6 +33,8 @@ const PostJobPage = () => {
     post_type: 'hiring', poster_name: '',
     is_urgent: false, is_featured: false,
     work_date: '', work_time: '',
+    lat: null as number | null, lng: null as number | null,
+    gender_pref: 'any', // any, male, female
   });
   const [jobImage, setJobImage] = useState<File | null>(null);
   const [jobImagePreview, setJobImagePreview] = useState<string | null>(null);
@@ -112,6 +115,10 @@ const PostJobPage = () => {
       }
     }
 
+    let finalDescription = form.description;
+    if (form.gender_pref === 'male') finalDescription = `[${l('ຮັບສະເພາະ:', 'รับเฉพาะ:', 'Required:')} 👨 ${l('ຜູ້ຊາຍ', 'ผู้ชาย', 'Male')}]\n${finalDescription}`;
+    if (form.gender_pref === 'female') finalDescription = `[${l('ຮັບສະເພາະ:', 'รับเฉพาะ:', 'Required:')} 👩 ${l('ຜູ້ຍິງ', 'ผู้หญิง', 'Female')}]\n${finalDescription}`;
+
     let image_url: string | null = null;
     if (jobImage) {
       const ext = jobImage.name.split('.').pop();
@@ -124,12 +131,13 @@ const PostJobPage = () => {
     }
 
     const { error } = await supabase.from('jobs').insert({
-      user_id: user.id, title: form.title, description: form.description,
+      user_id: user.id, title: form.title, description: finalDescription,
       category: form.category, district: form.district, salary: form.salary,
       salary_type: form.salary_type, phone: form.phone, address: form.address,
       post_type: form.post_type, poster_name: form.poster_name,
       is_urgent: form.is_urgent, is_featured: form.is_featured,
       work_date: form.work_date || null, work_time: form.work_time || null,
+      lat: form.lat, lng: form.lng,
       image_url,
     } as any);
 
@@ -143,6 +151,26 @@ const PostJobPage = () => {
   };
 
   const update = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
+
+  const handlePhoneChange = (val: string) => {
+    let digits = val.replace(/\D/g, '');
+    if (!digits) return update('phone', '');
+
+    if (!digits.startsWith('856')) {
+      if (digits.startsWith('020')) digits = '85620' + digits.substring(3);
+      else if (digits.startsWith('20')) digits = '85620' + digits.substring(2);
+      else digits = '85620' + digits;
+    }
+
+    let formatted = '+856 20';
+    const rest = digits.substring(5);
+    
+    if (rest.length > 0) formatted += ' ' + rest.substring(0, 2);
+    if (rest.length > 2) formatted += ' ' + rest.substring(2, 5);
+    if (rest.length > 5) formatted += ' ' + rest.substring(5, 8);
+    
+    update('phone', formatted);
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -239,14 +267,39 @@ const PostJobPage = () => {
                 </div>
               </div>
 
+              {/* Gender Preference */}
+              <div>
+                <Label className="mb-2 block">{l('ເພດທີ່ຕ້ອງການ', 'เพศที่ต้องการ', 'Gender Preference')}</Label>
+                <div className="flex gap-3">
+                  <Button type="button" variant={form.gender_pref === 'any' ? 'default' : 'outline'} className={`flex-1 px-1 sm:px-3 gap-2 h-16 transition-all ${form.gender_pref === 'any' ? 'shadow-md scale-[1.02]' : 'opacity-70 hover:opacity-100 hover:scale-100'}`} onClick={() => update('gender_pref', 'any')}>
+                    <img src="https://api.dicebear.com/9.x/notionists/svg?seed=Alex&backgroundColor=e5e7eb&radius=50" className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border shadow-sm bg-white" alt="Any" />
+                    <span className="text-xs sm:text-sm font-bold">{l('ບໍ່ຈຳກັດ', 'ไม่จำกัด', 'Any')}</span>
+                  </Button>
+                  <Button type="button" variant={form.gender_pref === 'male' ? 'default' : 'outline'} className={`flex-1 px-1 sm:px-3 gap-2 h-16 transition-all ${form.gender_pref === 'male' ? 'bg-blue-500 hover:bg-blue-600 shadow-md border-transparent text-white scale-[1.02]' : 'opacity-70 hover:opacity-100 hover:border-blue-400 hover:bg-blue-50/10'}`} onClick={() => update('gender_pref', 'male')}>
+                    <img src="https://api.dicebear.com/9.x/notionists/svg?seed=Felix&backgroundColor=bfdbfe&radius=50" className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border shadow-sm bg-white" alt="Male" />
+                    <span className="text-xs sm:text-sm font-bold">{l('ຊາຍ', 'ชาย', 'Male')}</span>
+                  </Button>
+                  <Button type="button" variant={form.gender_pref === 'female' ? 'default' : 'outline'} className={`flex-1 px-1 sm:px-3 gap-2 h-16 transition-all ${form.gender_pref === 'female' ? 'bg-pink-500 hover:bg-pink-600 shadow-md border-transparent text-white scale-[1.02]' : 'opacity-70 hover:opacity-100 hover:border-pink-400 hover:bg-pink-50/10'}`} onClick={() => update('gender_pref', 'female')}>
+                    <img src="https://api.dicebear.com/9.x/notionists/svg?seed=Jocelyn&backgroundColor=fbcfe8&radius=50" className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border shadow-sm bg-white" alt="Female" />
+                    <span className="text-xs sm:text-sm font-bold">{l('ຍິງ', 'หญิง', 'Female')}</span>
+                  </Button>
+                </div>
+              </div>
+
               <div>
                 <Label>{t('post.phone', language)} *</Label>
-                <Input value={form.phone} onChange={e => update('phone', e.target.value)} placeholder="020 XX XXX XXX" />
+                <Input value={form.phone} onChange={e => handlePhoneChange(e.target.value)} placeholder="+856 20 XX XXX XXX" />
               </div>
               <div>
-                <Label>{t('post.address', language)} ({l('ໃສ່ລິ້ງ Google Map ໄດ້', 'ใส่ลิงก์ Google Map ได้', 'Google Map link accepted')})</Label>
-                <Input value={form.address} onChange={e => update('address', e.target.value)} placeholder={l('ທີ່ຢູ່ ຫຼື ລິ້ງ Google Map', 'ที่อยู่ หรือ ลิงก์ Google Map', 'Address or Google Map link')} />
+                <Label>{l('ລາຍລະອຽດສະຖານທີ່', 'รายละเอียดสถานที่', 'Location Details')} ({l('ທາງເລືອກ', 'ไม่บังคับ', 'Optional')})</Label>
+                <Input value={form.address} onChange={e => update('address', e.target.value)} placeholder={l('ຊື່ສະຖານທີ່, ອາຄານ, ຊອຍ', 'ชื่อสถานที่, อาคาร, หรือซอย', 'Location name, building, or alley')} />
               </div>
+
+              {/* Map Location Picker */}
+              <LocationPicker 
+                position={form.lat && form.lng ? { lat: form.lat, lng: form.lng } : null}
+                onPositionChange={pos => { update('lat', pos.lat); update('lng', pos.lng); }}
+              />
 
               {/* Premium options */}
               <div className="border rounded-lg p-4 space-y-3 bg-muted/30">

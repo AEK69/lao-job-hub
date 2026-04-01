@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { t } from '@/lib/i18n';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { motion } from 'framer-motion';
-import { Briefcase, Menu, X, MessageCircle, User, LogOut, Coins } from 'lucide-react';
+import { Briefcase, MessageCircle, User, LogOut, Coins } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +14,6 @@ export function Header() {
   const { language } = useAppStore();
   const { user, profile, signOut } = useAuth();
   const location = useLocation();
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
@@ -100,62 +99,12 @@ export function Header() {
           <LanguageSwitcher />
         </nav>
 
-        {/* Mobile toggle */}
+        {/* Mobile items (hidden on md) */}
         <div className="flex md:hidden items-center gap-2">
-          {user && (
-            <Link to="/chat" className="relative">
-              <Button variant="ghost" size="icon">
-                <MessageCircle className="h-5 w-5" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] rounded-full h-4 w-4 flex items-center justify-center">
-                    {unreadCount}
-                  </span>
-                )}
-              </Button>
-            </Link>
-          )}
+          {/* We only keep language switcher here for mobile since BottomNav has the rest */}
           <LanguageSwitcher />
-          <Button variant="ghost" size="icon" onClick={() => setMobileOpen(!mobileOpen)}>
-            {mobileOpen ? <X /> : <Menu />}
-          </Button>
         </div>
       </div>
-
-      {/* Mobile nav */}
-      {mobileOpen && (
-        <motion.nav
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="md:hidden border-t bg-card p-4 flex flex-col gap-2"
-        >
-          {links.map((link) => (
-            <Link key={link.to} to={link.to} onClick={() => setMobileOpen(false)}>
-              <Button variant={location.pathname === link.to ? 'default' : 'ghost'} className="w-full justify-start">
-                {link.label}
-              </Button>
-            </Link>
-          ))}
-          {user ? (
-            <>
-              <Link to="/profile" onClick={() => setMobileOpen(false)}>
-                <Button variant="ghost" className="w-full justify-start gap-2">
-                  <User className="h-4 w-4" /> {language === 'en' ? 'Profile' : language === 'th' ? 'โปรไฟล์' : 'ໂປຣໄຟລ໌'}
-                  <Badge variant="secondary" className="ml-auto">🪙 {profile?.coin_balance || 0}</Badge>
-                </Button>
-              </Link>
-              <Button variant="ghost" className="w-full justify-start gap-2 text-destructive" onClick={() => { signOut(); setMobileOpen(false); }}>
-                <LogOut className="h-4 w-4" /> {language === 'en' ? 'Logout' : language === 'th' ? 'ออกจากระบบ' : 'ອອກຈາກລະບົບ'}
-              </Button>
-            </>
-          ) : (
-            <Link to="/auth" onClick={() => setMobileOpen(false)}>
-              <Button className="w-full gap-2">
-                <User className="h-4 w-4" /> {language === 'en' ? 'Login' : language === 'th' ? 'เข้าสู่ระบบ' : 'ເຂົ້າສູ່ລະບົບ'}
-              </Button>
-            </Link>
-          )}
-        </motion.nav>
-      )}
     </header>
   );
 }

@@ -153,11 +153,17 @@ const ChatPage = () => {
     if (!amount) return;
     const coinAmount = Number(amount);
 
-    const { data: success } = await supabase.rpc('spend_coins', { _amount: coinAmount, _type: 'transfer', _description: `Transfer to ${activeConv.other_profile?.display_name}` });
-    if (!success) { Swal.fire({ icon: 'error', title: l('ລົ້ມເຫຼວ', 'ล้มเหลว', 'Failed') }); return; }
+    // ใช้ transfer_coins RPC ที่ทำการโอนและรับอัตโนมัติในครั้งเดียว
+    const { data: success } = await supabase.rpc('transfer_coins' as any, {
+      _to_user_id: otherId,
+      _amount: coinAmount,
+      _description: `${l('ໂອນຈາກ', 'โอนจาก', 'Transfer from')} ${profile?.display_name} ${l('ໄປ', 'ไป', 'to')} ${activeConv.other_profile?.display_name}`,
+    });
 
-    // Top up recipient
-    const { error } = await supabase.rpc('admin_topup_coins' as any, { _target_user_id: otherId, _amount: coinAmount, _description: `Received from ${profile?.display_name}` });
+    if (!success) {
+      Swal.fire({ icon: 'error', title: l('ລົ້ມເຫຼວ', 'ล้มเหลว', 'Failed'), text: l('ຫຼຽນບໍ່ພໍ ຫຼື ເກີດຂໍ້ຜິດພາດ', 'เหรียญไม่พอหรือเกิดข้อผิดพลาด', 'Not enough coins or an error occurred') });
+      return;
+    }
 
     await sendMessage(`💰 ${l('ສົ່ງ', 'ส่ง', 'Sent')} ${coinAmount.toLocaleString()} 🪙`);
     await refreshProfile();

@@ -10,7 +10,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Trash2, Briefcase, Users, Coins, Search, ShieldCheck, Eye, CheckCircle, XCircle,
   Minus, Plus, BarChart3, LogOut, Home, Settings, Bell, ChevronDown, ChevronUp,
-  UserCheck, UserX, AlertTriangle, TrendingUp, DollarSign, Clock, FileText
+  UserCheck, UserX, AlertTriangle, TrendingUp, DollarSign, Clock, FileText, Download,
+  Lock, Unlock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -40,6 +41,33 @@ interface UserProfile {
 }
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', '#10b981', '#f59e0b', '#ef4444', '#6366f1', '#ec4899', '#14b8a6'];
+
+// Export jobs to CSV
+const exportJobsToCSV = (jobs: Job[], filename: string = 'jobs-export.csv') => {
+  const headers = ['ID', 'Title', 'Category', 'District', 'Salary', 'Poster', 'Type', 'Status', 'Created', 'Urgent', 'Featured'];
+  const rows = jobs.map(job => [
+    job.id,
+    `"${job.title}"`,
+    job.category,
+    job.district,
+    job.salary,
+    `"${job.poster_name}"`,
+    job.post_type,
+    job.status,
+    new Date(job.created_at).toLocaleDateString(),
+    job.is_urgent ? 'Yes' : 'No',
+    job.is_featured ? 'Yes' : 'No',
+  ]);
+
+  const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  window.URL.revokeObjectURL(url);
+};
 
 const AdminPage = () => {
   const { language } = useAppStore();
@@ -387,7 +415,7 @@ const AdminPage = () => {
 
             {/* Jobs */}
             <TabsContent value="jobs" className="space-y-4">
-              <div className="flex gap-2 flex-wrap">
+              <div className="flex gap-2 flex-wrap items-center">
                 <div className="relative flex-1 min-w-[200px]">
                   <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input placeholder={l('ຄົ້ນຫາວຽກ...', 'ค้นหางาน...', 'Search jobs...')} value={searchJob} onChange={e => setSearchJob(e.target.value)} className="pl-10" />
@@ -400,6 +428,15 @@ const AdminPage = () => {
                     <SelectItem value="cancelled">❌ Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="gap-2" 
+                  onClick={() => exportJobsToCSV(filteredJobs, `jobs-${new Date().toISOString().split('T')[0]}.csv`)}
+                  disabled={filteredJobs.length === 0}
+                >
+                  <Download className="h-4 w-4" /> {l('ສົ່ງອອກ', 'ส่งออก', 'Export')}
+                </Button>
               </div>
               <div className="space-y-2">
                 {filteredJobs.length === 0 ? (
@@ -424,11 +461,32 @@ const AdminPage = () => {
                               {job.poster_name} • {district?.[language] || district?.lo} • {new Date(job.created_at).toLocaleDateString()}
                             </div>
                           </div>
-                          <div className="flex gap-1">
-                            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => handleToggleJobStatus(job)}>
-                              {job.status === 'active' ? '⏸️' : '▶️'}
+                          <div className="flex gap-1 flex-wrap justify-end">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="h-8 text-xs gap-1"
+                              title={job.status === 'active' ? l('ບັນ', 'ปิด', 'Disable') : l('ເປີດ', 'เปิด', 'Enable')}
+                              onClick={() => handleToggleJobStatus(job)}
+                            >
+                              {job.status === 'active' ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
                             </Button>
-                            <Button size="sm" variant="destructive" className="h-8 text-xs gap-1" onClick={() => handleDeleteJob(job.id, job.title)}>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="h-8 text-xs gap-1 text-blue-600 border-blue-200 hover:bg-blue-50"
+                              title={l('ສົ່ງອອກ', 'ส่งออก', 'Export')}
+                              onClick={() => exportJobsToCSV([job], `job-${job.id}.csv`)}
+                            >
+                              <Download className="h-3 w-3" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="destructive" 
+                              className="h-8 text-xs gap-1"
+                              title={l('ລຶບ', 'ลบ', 'Delete')}
+                              onClick={() => handleDeleteJob(job.id, job.title)}
+                            >
                               <Trash2 className="h-3 w-3" />
                             </Button>
                           </div>
