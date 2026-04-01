@@ -69,8 +69,25 @@ const JobDetailPage = () => {
   );
 
   const district = districts.find(d => d.id === job.district);
-  const lat = job.lat || 17.9757;
-  const lng = job.lng || 102.6331;
+
+  // Parse Google Map link for coordinates
+  const parseGoogleMapCoords = (address: string): [number, number] | null => {
+    // Match @lat,lng patterns
+    const atMatch = address.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+    if (atMatch) return [parseFloat(atMatch[1]), parseFloat(atMatch[2])];
+    // Match q=lat,lng
+    const qMatch = address.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+    if (qMatch) return [parseFloat(qMatch[1]), parseFloat(qMatch[2])];
+    // Match place/lat,lng
+    const placeMatch = address.match(/place\/[^/]*\/(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+    if (placeMatch) return [parseFloat(placeMatch[1]), parseFloat(placeMatch[2])];
+    return null;
+  };
+
+  const parsedCoords = parseGoogleMapCoords(job.address);
+  const lat = job.lat || parsedCoords?.[0] || 17.9757;
+  const lng = job.lng || parsedCoords?.[1] || 102.6331;
+  const isGoogleMapLink = job.address.includes('google.com/maps') || job.address.includes('maps.app.goo.gl') || job.address.includes('goo.gl/maps');
 
   const handleChat = () => {
     if (!user) { navigate('/auth'); return; }
@@ -101,7 +118,7 @@ const JobDetailPage = () => {
 
             <h1 className="text-2xl font-bold mb-2">{job.title}</h1>
             <div className="flex items-center gap-2 mb-1">
-              <p className="text-muted-foreground">{t('job.postedBy', language)}: {job.poster_name}</p>
+              <p className="text-muted-foreground">{t('job.postedBy', language)}: <Link to={`/user/${job.user_id}`} className="text-primary hover:underline">{job.poster_name}</Link></p>
               {posterRating && (
                 <Badge variant="outline" className="gap-1 text-xs">
                   <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
@@ -148,7 +165,14 @@ const JobDetailPage = () => {
             )}
 
             <div className="mb-6 space-y-2">
-              <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" /><span>{job.address}</span></div>
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-primary" />
+                {isGoogleMapLink ? (
+                  <a href={job.address} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">📍 {l('ເບິ່ງແຜນທີ່', 'ดูแผนที่', 'View on Map')}</a>
+                ) : (
+                  <span>{job.address}</span>
+                )}
+              </div>
               <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-primary" /><a href={`tel:${job.phone}`} className="text-primary hover:underline">{job.phone}</a></div>
             </div>
 

@@ -6,408 +6,304 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Upload, CheckCircle, AlertCircle, Clock, Shield, 
-  FileText, Camera, Smartphone, Lock, ChevronRight,
-  ShieldCheck, ShieldAlert, ArrowRight
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { districts } from '@/lib/i18n';
+import {
+  Upload, CheckCircle, Clock, Shield,
+  Camera, ShieldCheck, ShieldAlert, ArrowRight, ArrowLeft, User, Phone, MapPin
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { toast } from 'sonner';
 import { Navigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
 
 const KYCPage = () => {
   const { user, profile, refreshProfile, loading } = useAuth();
   const { language } = useAppStore();
+  const [step, setStep] = useState(1);
   const [kycFile, setKycFile] = useState<File | null>(null);
   const [kycPreview, setKycPreview] = useState<string | null>(null);
-  const [kycUploading, setKycUploading] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [form, setForm] = useState({
+    full_name: '',
+    display_name: '',
+    phone: '',
+    date_of_birth: '',
+    district: '',
+    address: '',
+    is_student: false,
+    guardian_name: '',
+    guardian_phone: '',
+  });
 
   const l = (lo: string, th: string, en: string) => language === 'en' ? en : language === 'th' ? th : lo;
 
-  const steps = [
-    {
-      number: 1,
-      title: l('ກວດສອບສິ່ງທີ່ຕ້ອງການ', 'ตรวจสอบความต้องการ', 'Check Requirements'),
-      description: l('ວ່າທ່ານມີເອກະສານທີ່ຈໍາເປັນຫຼືບໍ່', 'ตรวจสอบว่าคุณมีเอกสารที่จำเป็น', 'Verify you have required documents'),
-      icon: FileText,
-    },
-    {
-      number: 2,
-      title: l('ອັບໂຫລດເອກະສານ', 'อัปโหลดเอกสาร', 'Upload Document'),
-      description: l('ອັບໂຫລດຮູບຖ່າຍຂອງເອກະສານປະຈໍາຕົວ', 'อัปโหลดรูปถ่ายเอกสารประจำตัว', 'Upload your ID document photo'),
-      icon: Camera,
-    },
-    {
-      number: 3,
-      title: l('ລໍຖ້າການກວດສອບ', 'รอการตรวจสอบ', 'Wait for Review'),
-      description: l('Admin ກຳລັງກວດສອບເອກະສານຂອງທ່ານ', 'Admin จะตรวจสอบเอกสารของคุณ', 'Our team reviews your submission'),
-      icon: Clock,
-    },
-    {
-      number: 4,
-      title: l('ສໍາເລັດ!', 'สำเร็จ!', 'All Set!'),
-      description: l('ທ່ານສາມາດໃຊ້ທຸກລາຍການໄດ້ແລ້ວ', 'คุณสามารถใช้งานได้แล้ว', 'You can use all features'),
-      icon: ShieldCheck,
-    },
-  ];
-
-  const requirements = [
-    {
-      icon: FileText,
-      title: l('ເອກະສານທີ່ຍອມຮັບ', 'เอกสารที่ยอมรับ', 'Valid Documents'),
-      items: [
-        l('ID Card / ບັດປະຈໍາຕົວ', 'บัตรประจำตัว', 'National ID Card'),
-        l('Passport / ລາຍຠ່າວ', 'พาสปอร์ต', 'Passport'),
-        l('ໃບຫລັກນ້ອຍ / ໃບຜ່ານແດນ', 'ใบขับขี่', 'Driver License'),
-      ],
-    },
-    {
-      icon: Camera,
-      title: l('ຄຸນលັກສະນະຮູບ', 'คุณลักษณะรูป', 'Photo Requirements'),
-      items: [
-        l('ຮູບຊัດເຈນ ໃນແສງສະຫວ່າງ', 'ภาพชัดเจน ในแสงสว่าง', 'Clear, well-lit photo'),
-        l('ເນື້ອທີ່ຜະສົ່ວນໃຫຍ່ລະ 80%', 'ขนาด A4 อย่างน้อย', 'At least A4 size'),
-        l('ຮູບ JPG, PNG ຫຼື PDF', 'JPG, PNG หรือ PDF', 'JPG, PNG or PDF format'),
-      ],
-    },
-    {
-      icon: Lock,
-      title: l('ຄວາມປອດໄພ', 'ความปลอดภัย', 'Security'),
-      items: [
-        l('ຂໍ້ມູນຖືກເຂົ້າລະຫັດ', 'ข้อมูลได้รับการเข้ารหัส', 'Data is encrypted'),
-        l('ສະກັດສຽງ 256-bit SSL', 'ใช้ 256-bit SSL', 'Uses 256-bit SSL'),
-        l('ບໍ່ແບ່ງປັນກັບຝ່າຍທີ 3', 'ไม่แชร์ข้อมูลกับบุคคลที่ 3', 'Never shared with third parties'),
-      ],
-    },
-  ];
+  useEffect(() => {
+    if (profile) {
+      setForm(prev => ({
+        ...prev,
+        full_name: prev.full_name || profile.full_name || '',
+        display_name: prev.display_name || profile.display_name || '',
+        phone: prev.phone || profile.phone || '',
+        date_of_birth: prev.date_of_birth || profile.date_of_birth || '',
+        district: prev.district || profile.district || '',
+        address: prev.address || profile.address || '',
+        is_student: profile.is_student || false,
+        guardian_name: prev.guardian_name || profile.guardian_name || '',
+        guardian_phone: prev.guardian_phone || profile.guardian_phone || '',
+      }));
+    }
+  }, [profile]);
 
   if (loading) return null;
   if (!user) return <Navigate to="/auth" />;
 
-  const handleKycFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Already approved
+  if (profile?.kyc_status === 'approved') {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <div className="flex-1 flex items-center justify-center">
+          <Card className="p-8 text-center max-w-md">
+            <ShieldCheck className="h-16 w-16 text-green-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold mb-2">{l('ຢືນຢັນສຳເລັດແລ້ວ!', 'ยืนยันสำเร็จแล้ว!', 'Verified!')}</h2>
+            <p className="text-muted-foreground">{l('ທ່ານສາມາດໃຊ້ງານທຸກລະບົບໄດ້ແລ້ວ', 'คุณสามารถใช้งานได้ทุกฟังก์ชัน', 'You can now use all features')}</p>
+          </Card>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Pending
+  if (profile?.kyc_status === 'pending' && profile?.id_card_url) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <div className="flex-1 flex items-center justify-center">
+          <Card className="p-8 text-center max-w-md">
+            <Clock className="h-16 w-16 text-blue-500 mx-auto mb-4 animate-pulse" />
+            <h2 className="text-xl font-bold mb-2">{l('ລໍຖ້າການກວດສອບ', 'รอการตรวจสอบ', 'Under Review')}</h2>
+            <p className="text-muted-foreground">{l('Admin ຈະກວດສອບຂໍ້ມູນຂອງທ່ານພາຍໃນ 24 ຊົ່ວໂມງ', 'Admin จะตรวจสอบภายใน 24 ชั่วโมง', 'Admin will review within 24 hours')}</p>
+          </Card>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  const isMinor = form.date_of_birth ? (new Date().getFullYear() - new Date(form.date_of_birth).getFullYear()) < 18 : false;
+
+  const update = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setKycFile(file);
       setKycPreview(URL.createObjectURL(file));
-      setCurrentStep(1);
     }
   };
 
-  const handleKycUpload = async () => {
-    if (!kycFile) {
-      toast.error(l('ເລືອກໄຟລ໌ຮູບພາບກ່ອນ', 'เลือกรูปถ่ายก่อน', 'Please select an image first'));
-      return;
-    }
+  const canGoNext = () => {
+    if (step === 1) return form.full_name && form.display_name && form.phone && form.date_of_birth;
+    if (step === 2) return form.district && form.address;
+    if (step === 3 && isMinor) return form.guardian_name && form.guardian_phone;
+    if (step === 3 && !isMinor) return true;
+    if (step === 4) return !!kycFile;
+    return false;
+  };
 
-    setKycUploading(true);
+  const totalSteps = isMinor ? 4 : 3;
+  const docStep = isMinor ? 4 : 3;
+
+  const handleSubmit = async () => {
+    if (!kycFile) return;
+    setSubmitting(true);
     try {
       const ext = kycFile.name.split('.').pop();
-      const filePath = `${user!.id}/${Date.now()}.${ext}`;
+      const filePath = `${user.id}/${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage.from('id-cards').upload(filePath, kycFile);
       if (upErr) throw upErr;
 
-      const { data } = supabase.storage.from('id-cards').getPublicUrl(filePath);
-      const { error: updateErr } = await supabase
+      const { data: urlData } = supabase.storage.from('id-cards').getPublicUrl(filePath);
+
+      const { error } = await supabase
         .from('profiles')
-        .update({ id_card_url: data.publicUrl, kyc_status: 'pending' })
-        .eq('user_id', user!.id);
+        .update({
+          full_name: form.full_name,
+          display_name: form.display_name,
+          phone: form.phone,
+          date_of_birth: form.date_of_birth,
+          district: form.district,
+          address: form.address,
+          is_student: form.is_student,
+          guardian_name: isMinor ? form.guardian_name : null,
+          guardian_phone: isMinor ? form.guardian_phone : null,
+          id_card_url: urlData.publicUrl,
+          kyc_status: 'pending',
+        })
+        .eq('user_id', user.id);
 
-      if (updateErr) throw updateErr;
+      if (error) throw error;
 
-      toast.success(
-        l(
-          'ອັບໂຫລດແລ້ວ! ລໍຖ້າ Admin ຢືນຢັນ',
-          'อัปโหลดแล้ว! รอการยืนยันของ Admin',
-          'Uploaded! Waiting for admin verification'
-        )
-      );
-      setKycFile(null);
-      setKycPreview(null);
-      setCurrentStep(2);
+      await Swal.fire({
+        icon: 'success',
+        title: l('ສົ່ງຂໍ້ມູນສຳເລັດ!', 'ส่งข้อมูลสำเร็จ!', 'Submitted!'),
+        text: l('ລໍຖ້າ Admin ກວດສອບ', 'รอ Admin ตรวจสอบ', 'Waiting for admin review'),
+        confirmButtonColor: 'hsl(var(--primary))',
+      });
       await refreshProfile();
     } catch (err: any) {
-      toast.error(err.message || l('ເກີດຂໍ້ຜິດພາດ', 'เกิดข้อผิดพลาด', 'Error occurred'));
+      Swal.fire({ icon: 'error', title: 'Error', text: err.message });
     } finally {
-      setKycUploading(false);
+      setSubmitting(false);
     }
   };
 
-  // Get current step based on status
-  const getProgressStep = () => {
-    if (profile?.kyc_status === 'approved') return 3;
-    if (profile?.kyc_status === 'pending') return 2;
-    if (profile?.kyc_status === 'rejected') return 1;
-    return 0;
+  const renderStep = () => {
+    // Step 1: Personal Info
+    if (step === 1) return (
+      <div className="space-y-4">
+        <div>
+          <Label className="flex items-center gap-1"><User className="h-4 w-4" /> {l('ຊື່ເຕັມ', 'ชื่อเต็ม', 'Full Name')} *</Label>
+          <Input value={form.full_name} onChange={e => update('full_name', e.target.value)} placeholder={l('ຊື່ ແລະ ນາມສະກຸນ', 'ชื่อ-นามสกุล', 'First and Last name')} />
+        </div>
+        <div>
+          <Label>{l('ຊື່ສະແດງ', 'ชื่อที่แสดง', 'Display Name')} *</Label>
+          <Input value={form.display_name} onChange={e => update('display_name', e.target.value)} />
+        </div>
+        <div>
+          <Label className="flex items-center gap-1"><Phone className="h-4 w-4" /> {l('ເບີໂທ', 'เบอร์โทร', 'Phone')} *</Label>
+          <Input value={form.phone} onChange={e => update('phone', e.target.value)} placeholder="020 XX XXX XXX" />
+        </div>
+        <div>
+          <Label>{l('ວັນເດືອນປີເກີດ', 'วันเดือนปีเกิด', 'Date of Birth')} *</Label>
+          <Input type="date" value={form.date_of_birth} onChange={e => update('date_of_birth', e.target.value)} />
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch checked={form.is_student} onCheckedChange={v => update('is_student', v)} />
+          <Label>{l('ນັກສຶກສາ', 'นักศึกษา', 'Student')}</Label>
+        </div>
+      </div>
+    );
+
+    // Step 2: Location
+    if (step === 2) return (
+      <div className="space-y-4">
+        <div>
+          <Label className="flex items-center gap-1"><MapPin className="h-4 w-4" /> {l('ເມືອງ', 'เมือง', 'District')} *</Label>
+          <Select value={form.district} onValueChange={v => update('district', v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {districts.map(d => (<SelectItem key={d.id} value={d.id}>{d[language] || d.lo}</SelectItem>))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>{l('ທີ່ຢູ່ລະອຽດ', 'ที่อยู่', 'Address')} *</Label>
+          <Input value={form.address} onChange={e => update('address', e.target.value)} />
+        </div>
+      </div>
+    );
+
+    // Step 3: Guardian (for minors) or Document upload
+    if (step === 3 && isMinor) return (
+      <div className="space-y-4">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-2">
+          <p className="text-sm text-amber-800">
+            {l('ເນື່ອງຈາກທ່ານອາຍຸຕ່ຳກວ່າ 18 ປີ ຕ້ອງມີຜູ້ປົກຄອງຢືນຢັນ', 'เนื่องจากอายุต่ำกว่า 18 ปี ต้องมีผู้ปกครองยืนยัน', 'Since you are under 18, a guardian must verify')}
+          </p>
+        </div>
+        <div>
+          <Label>{l('ຊື່ຜູ້ປົກຄອງ', 'ชื่อผู้ปกครอง', 'Guardian Name')} *</Label>
+          <Input value={form.guardian_name} onChange={e => update('guardian_name', e.target.value)} />
+        </div>
+        <div>
+          <Label>{l('ເບີໂທຜູ້ປົກຄອງ', 'เบอร์โทรผู้ปกครอง', 'Guardian Phone')} *</Label>
+          <Input value={form.guardian_phone} onChange={e => update('guardian_phone', e.target.value)} />
+        </div>
+      </div>
+    );
+
+    // Document upload step
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          {form.is_student
+            ? l('ອັບໂຫລດບັດນັກສຶກສາ', 'อัปโหลดบัตรนักศึกษา', 'Upload Student ID Card')
+            : l('ອັບໂຫລດບັດປະຈຳຕົວ', 'อัปโหลดบัตรประจำตัว', 'Upload National ID Card')}
+        </p>
+        {kycPreview ? (
+          <div className="space-y-3">
+            <img src={kycPreview} alt="Preview" className="w-full max-h-60 object-contain rounded-lg border" />
+            <Button variant="outline" size="sm" onClick={() => { setKycFile(null); setKycPreview(null); }}>
+              {l('ເລືອກໃໝ່', 'เลือกใหม่', 'Choose again')}
+            </Button>
+          </div>
+        ) : (
+          <label className="block border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:bg-muted/50 transition">
+            <Camera className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
+            <p className="font-medium">{l('ກົດເພື່ອເລືອກຮູບ', 'คลิกเลือกรูป', 'Click to select image')}</p>
+            <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
+          </label>
+        )}
+      </div>
+    );
   };
 
-  const progressStep = getProgressStep();
+  const currentStepIsDoc = (isMinor && step === 4) || (!isMinor && step === 3);
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="min-h-screen flex flex-col">
       <Header />
-      <div className="container py-12 flex-1 max-w-4xl">
+      <div className="container py-8 flex-1 max-w-lg">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          {/* Header */}
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 mb-4">
-              <Shield className="h-8 w-8 text-blue-600" />
-            </div>
-            <h1 className="text-4xl font-bold mb-3">
-              {l('ກວດສອບຕົວຕົນຂອງທ່ານ', 'ยืนยันตัวตนของคุณ', 'Verify Your Identity')}
-            </h1>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              {l(
-                'ກວດສອບຕົວຕົນຂອງທ່ານເພື່ອໃຫ້ສາມາດຂອບໃຊ້ລາຍການທັງໝົດໄດ້',
-                'ยืนยันตัวตนของคุณเพื่อใช้งานทุกลาຍการได้',
-                'Verify your identity to unlock all features'
-              )}
-            </p>
+          <div className="text-center mb-6">
+            <Shield className="h-12 w-12 mx-auto mb-2 text-primary" />
+            <h1 className="text-2xl font-bold">{l('ຢືນຢັນຕົວຕົນ', 'ยืนยันตัวตน', 'Identity Verification')}</h1>
           </div>
-
-          {/* Status Display */}
-          {profile?.kyc_status === 'approved' && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-12 p-6 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg"
-            >
-              <div className="flex items-center gap-4">
-                <div className="bg-green-100 rounded-full p-3">
-                  <ShieldCheck className="h-6 w-6 text-green-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-green-900">
-                    {l('ຢືນຢັນສໍາເລັດ!', 'ยืนยันสำเร็จแล้ว!', 'Verification Complete!')}
-                  </h3>
-                  <p className="text-green-800 text-sm">
-                    {l('ທ່ານໄດ້ຮັບການອະນຸມັດ ແລະສາມາດໃຊ້ທຸກລາຍການໄດ້', 'คุณได้รับอนุมัติแล้ว', 'You can now use all features')}
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          )}
 
           {profile?.kyc_status === 'rejected' && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-12 p-6 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-lg"
-            >
-              <div className="flex items-center gap-4">
-                <div className="bg-red-100 rounded-full p-3">
-                  <ShieldAlert className="h-6 w-6 text-red-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-red-900">
-                    {l('ສະ​ໂມສະຕໍ່ໍ', 'ปฏิเสธแล้ว', 'Verification Rejected')}
-                  </h3>
-                  <p className="text-red-800 text-sm">
-                    {l('ເອກະສານຂອງທ່ານບໍ່ຈົບຕາม ກະລຸນາອັບໂຫລດໃໝ່', 'เอกสารไม่ตรงตามเงื่อนไข', 'Document did not meet requirements')}
-                  </p>
-                </div>
-              </div>
-            </motion.div>
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-4 flex items-center gap-3">
+              <ShieldAlert className="h-5 w-5 text-destructive" />
+              <p className="text-sm">{l('ການຢືນຢັນຖືກປະຕິເສດ ກະລຸນາສົ່ງໃໝ່', 'การยืนยันถูกปฏิเสธ กรุณาส่งใหม่', 'Verification rejected. Please resubmit.')}</p>
+            </div>
           )}
 
-          {/* Step Indicator */}
-          <div className="mb-12">
-            <div className="flex justify-between items-center">
-              {steps.map((step, idx) => {
-                const isActive = idx === progressStep;
-                const isComplete = idx < progressStep;
-                const StepIcon = step.icon;
-
-                return (
-                  <motion.div
-                    key={step.number}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.1 }}
-                    className="flex flex-col items-center flex-1"
-                  >
-                    <div className="flex items-center w-full">
-                      <div
-                        className={`h-12 w-12 rounded-full flex items-center justify-center font-bold text-sm transition-all ${
-                          isComplete
-                            ? 'bg-green-500 text-white'
-                            : isActive
-                            ? 'bg-blue-500 text-white ring-4 ring-blue-200'
-                            : 'bg-gray-200 text-gray-600'
-                        }`}
-                      >
-                        {isComplete ? <CheckCircle className="h-6 w-6" /> : <StepIcon className="h-5 w-5" />}
-                      </div>
-                      {idx < steps.length - 1 && (
-                        <div
-                          className={`flex-1 h-1 mx-2 rounded-full transition-all ${
-                            isComplete ? 'bg-green-500' : 'bg-gray-200'
-                          }`}
-                        />
-                      )}
-                    </div>
-                    <div className="text-center mt-3 w-full">
-                      <p className="font-semibold text-sm">{step.number}. {step.title}</p>
-                      <p className="text-xs text-muted-foreground hidden sm:block">{step.description}</p>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
+          {/* Progress */}
+          <div className="flex items-center gap-1 mb-6">
+            {Array.from({ length: isMinor ? 4 : 3 }).map((_, i) => (
+              <div key={i} className={`flex-1 h-2 rounded-full transition-colors ${i < step ? 'bg-primary' : 'bg-muted'}`} />
+            ))}
           </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            {l('ຂັ້ນຕອນ', 'ขั้นตอน', 'Step')} {step}/{isMinor ? 4 : 3}
+          </p>
 
-          {/* Requirements Section */}
-          <div className="mb-12">
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-              <AlertCircle className="h-6 w-6" />
-              {l('ຄວາມສາມາດໃນການໃຫ້', 'ข้อกำหนด', 'Requirements')}
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {requirements.map((req, idx) => {
-                const Icon = req.icon;
-                return (
-                  <motion.div
-                    key={idx}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.1 }}
-                  >
-                    <Card className="p-6 h-full hover:shadow-lg transition-shadow">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="bg-blue-100 rounded-lg p-3">
-                          <Icon className="h-5 w-5 text-blue-600" />
-                        </div>
-                        <h3 className="font-semibold">{req.title}</h3>
-                      </div>
-                      <ul className="space-y-3">
-                        {req.items.map((item, i) => (
-                          <li key={i} className="flex items-start gap-2">
-                            <ChevronRight className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                            <span className="text-sm text-muted-foreground">{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </Card>
-                  </motion.div>
-                );
-              })}
+          <Card className="p-6">
+            {renderStep()}
+
+            <div className="flex gap-3 mt-6">
+              {step > 1 && (
+                <Button variant="outline" onClick={() => setStep(s => s - 1)} className="gap-1">
+                  <ArrowLeft className="h-4 w-4" /> {l('ກັບຄືນ', 'ย้อนกลับ', 'Back')}
+                </Button>
+              )}
+              <div className="flex-1" />
+              {currentStepIsDoc ? (
+                <Button onClick={handleSubmit} disabled={!kycFile || submitting} className="gap-1">
+                  {submitting ? '...' : l('ສົ່ງຂໍ້ມູນ', 'ส่งข้อมูล', 'Submit')} <CheckCircle className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button onClick={() => setStep(s => s + 1)} disabled={!canGoNext()} className="gap-1">
+                  {l('ຕໍ່ໄປ', 'ถัดไป', 'Next')} <ArrowRight className="h-4 w-4" />
+                </Button>
+              )}
             </div>
-          </div>
-
-          {/* Upload Section */}
-          {profile?.kyc_status !== 'approved' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <Card className="p-8">
-                <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
-                  <Upload className="h-6 w-6" />
-                  {l('ອັບໂຫລດເອກະສານ', 'อัปโหลดเอกสาร', 'Upload Your Document')}
-                </h2>
-                <p className="text-muted-foreground mb-8">
-                  {profile?.kyc_status === 'pending'
-                    ? l('ເອກະສານຂອງທ່ານກຳລັງລໍຖ້າການກວດສອບ', 'เอกสารของคุณรอการตรวจสอบ', 'Your document is being reviewed')
-                    : l('ອັບໂຫລດຮູບຖ່າຍເອກະສານປະຈໍາຕົວຂອງທ່ານ', 'อัปโหลดรูปถ่ายเอกสารประจำตัวของคุณ', 'Upload a photo of your ID document')}
-                </p>
-
-                {kycPreview ? (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                    <div className="border-2 border-dashed border-blue-300 rounded-lg p-6 bg-blue-50">
-                      <img src={kycPreview} alt="Preview" className="w-full max-h-80 object-contain rounded" />
-                    </div>
-                    <div className="flex gap-3">
-                      <Button
-                        size="lg"
-                        className="flex-1 gap-2 bg-blue-600 hover:bg-blue-700"
-                        onClick={handleKycUpload}
-                        disabled={kycUploading}
-                      >
-                        <Upload className="h-4 w-4" />
-                        {kycUploading ? l('ກຳລັງອັບໂຫລດ...', 'กำลังอัปโหลด...', 'Uploading...') : l('ຢືນຢັນອັບໂຫລດ', 'ยืนยันอัปโหลด', 'Submit Document')}
-                      </Button>
-                      <Button
-                        size="lg"
-                        variant="outline"
-                        onClick={() => {
-                          setKycPreview(null);
-                          setKycFile(null);
-                          setCurrentStep(0);
-                        }}
-                        disabled={kycUploading}
-                      >
-                        {l('ເລືອກຄືນໃໝ່', 'เลือกใหม่', 'Choose Again')}
-                      </Button>
-                    </div>
-                  </motion.div>
-                ) : profile?.kyc_status === 'pending' ? (
-                  <div className="space-y-4">
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                      <div className="flex items-center gap-3">
-                        <Clock className="h-6 w-6 text-blue-600" />
-                        <div>
-                          <p className="font-semibold text-blue-900">
-                            {l('ລໍຖ້າການກວດສອບ', 'รอการตรวจสอบ', 'Under Review')}
-                          </p>
-                          <p className="text-sm text-blue-800">
-                            {l('Admin ກະ​ລຸ​ນາກວດສອບຂໍ້ມູນໃນ 24 ຊົ່ວໂມງ', 'Admin จะตรวจสอบภายใน 24 ชั่วโมง', 'We usually respond within 24 hours')}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <label className="block border-2 border-dashed border-gray-300 rounded-lg p-12 text-center cursor-pointer hover:bg-gray-50 transition">
-                    <motion.div whileHover={{ scale: 1.05 }} className="flex flex-col items-center">
-                      <div className="bg-blue-100 rounded-full p-4 mb-4">
-                        <Upload className="h-8 w-8 text-blue-600" />
-                      </div>
-                      <p className="font-semibold text-lg mb-1">
-                        {l('ຄລິກເພື່ອເລືອກຮູບ', 'คลิกเลือกรูป', 'Click to select image')}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {l('ຫຼື ລາກວາງເອກະສານ', 'หรือลากวางเอกสาร', 'or drag and drop your file')}
-                      </p>
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,application/pdf"
-                        className="hidden"
-                        onChange={handleKycFileSelect}
-                      />
-                    </motion.div>
-                  </label>
-                )}
-              </Card>
-            </motion.div>
-          )}
-
-          {/* Info Box */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="mt-12 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6"
-          >
-            <h3 className="font-semibold mb-3 flex items-center gap-2">
-              <Lock className="h-5 w-5 text-blue-600" />
-              {l('ຄວາມປອດໄພຂອງເອກະສານ', 'ความอ่านไม่ได้ของเอกสาร', 'Your Data is Safe')}
-            </h3>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                {l('ຮູບຖ່າຍຖຸກເກັບໄວ້ເປັນສ່ວນຕົວ', 'ข้อมูลได้รับการเข้ารหัส', 'All data is encrypted with 256-bit SSL')}
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                {l('ບໍ່ແບ່ງປັນກັບບຸಕ్ಕಲທີ 3', 'ไม่แสญแลกกับบริษัทอื่น', 'Never shared with third parties')}
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                {l('ເປັນໄປຕາມກົດໝາຍ GDPR', 'ถูกต้องตามกฎ GDPR', 'Compliant with GDPR regulations')}
-              </li>
-            </ul>
-          </motion.div>
+          </Card>
         </motion.div>
       </div>
       <Footer />

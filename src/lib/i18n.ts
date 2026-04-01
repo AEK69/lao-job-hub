@@ -22,7 +22,7 @@ export const translations = {
   'search.btn': { lo: 'ຄົ້ນຫາ', th: 'ค้นหา', en: 'Search' },
 
   // Job card
-  'job.salary': { lo: 'ເງິນເດືອນ', th: 'เงินเดือน', en: 'Salary' },
+  'job.salary': { lo: 'ຄ່າຕອບແທນ', th: 'ค่าตอบแทน', en: 'Compensation' },
   'job.location': { lo: 'ສະຖານທີ່', th: 'สถานที่', en: 'Location' },
   'job.urgent': { lo: 'ດ່ວນ', th: 'ด่วน', en: 'Urgent' },
   'job.new': { lo: 'ໃໝ່', th: 'ใหม่', en: 'New' },
@@ -38,7 +38,7 @@ export const translations = {
   // Post form
   'post.title': { lo: 'ຫົວຂໍ້ວຽກ', th: 'หัวข้องาน', en: 'Job Title' },
   'post.description': { lo: 'ລາຍລະອຽດ', th: 'รายละเอียด', en: 'Description' },
-  'post.salary': { lo: 'ເງິນເດືອນ/ຄ່າຈ້າງ', th: 'เงินเดือน/ค่าจ้าง', en: 'Salary/Wage' },
+  'post.salary': { lo: 'ຄ່າຕອບແທນ', th: 'ค่าตอบแทน', en: 'Compensation' },
   'post.phone': { lo: 'ເບີໂທ', th: 'เบอร์โทร', en: 'Phone' },
   'post.address': { lo: 'ທີ່ຢູ່', th: 'ที่อยู่', en: 'Address' },
   'post.submit': { lo: 'ໂພສວຽກ', th: 'โพสต์งาน', en: 'Post Job' },

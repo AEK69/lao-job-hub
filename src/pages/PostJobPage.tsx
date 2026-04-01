@@ -244,8 +244,8 @@ const PostJobPage = () => {
                 <Input value={form.phone} onChange={e => update('phone', e.target.value)} placeholder="020 XX XXX XXX" />
               </div>
               <div>
-                <Label>{t('post.address', language)}</Label>
-                <Input value={form.address} onChange={e => update('address', e.target.value)} />
+                <Label>{t('post.address', language)} ({l('ໃສ່ລິ້ງ Google Map ໄດ້', 'ใส่ลิงก์ Google Map ได้', 'Google Map link accepted')})</Label>
+                <Input value={form.address} onChange={e => update('address', e.target.value)} placeholder={l('ທີ່ຢູ່ ຫຼື ລິ້ງ Google Map', 'ที่อยู่ หรือ ลิงก์ Google Map', 'Address or Google Map link')} />
               </div>
 
               {/* Premium options */}
