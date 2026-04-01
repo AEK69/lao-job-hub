@@ -165,7 +165,14 @@ const JobDetailPage = () => {
             )}
 
             <div className="mb-6 space-y-2">
-              <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" /><span>{job.address}</span></div>
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-primary" />
+                {isGoogleMapLink ? (
+                  <a href={job.address} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">📍 {l('ເບິ່ງແຜນທີ່', 'ดูแผนที่', 'View on Map')}</a>
+                ) : (
+                  <span>{job.address}</span>
+                )}
+              </div>
               <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-primary" /><a href={`tel:${job.phone}`} className="text-primary hover:underline">{job.phone}</a></div>
             </div>
 
