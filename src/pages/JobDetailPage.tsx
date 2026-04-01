@@ -69,8 +69,25 @@ const JobDetailPage = () => {
   );
 
   const district = districts.find(d => d.id === job.district);
-  const lat = job.lat || 17.9757;
-  const lng = job.lng || 102.6331;
+
+  // Parse Google Map link for coordinates
+  const parseGoogleMapCoords = (address: string): [number, number] | null => {
+    // Match @lat,lng patterns
+    const atMatch = address.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+    if (atMatch) return [parseFloat(atMatch[1]), parseFloat(atMatch[2])];
+    // Match q=lat,lng
+    const qMatch = address.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+    if (qMatch) return [parseFloat(qMatch[1]), parseFloat(qMatch[2])];
+    // Match place/lat,lng
+    const placeMatch = address.match(/place\/[^/]*\/(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+    if (placeMatch) return [parseFloat(placeMatch[1]), parseFloat(placeMatch[2])];
+    return null;
+  };
+
+  const parsedCoords = parseGoogleMapCoords(job.address);
+  const lat = job.lat || parsedCoords?.[0] || 17.9757;
+  const lng = job.lng || parsedCoords?.[1] || 102.6331;
+  const isGoogleMapLink = job.address.includes('google.com/maps') || job.address.includes('maps.app.goo.gl') || job.address.includes('goo.gl/maps');
 
   const handleChat = () => {
     if (!user) { navigate('/auth'); return; }
