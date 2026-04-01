@@ -118,7 +118,7 @@ const JobDetailPage = () => {
 
             <h1 className="text-2xl font-bold mb-2">{job.title}</h1>
             <div className="flex items-center gap-2 mb-1">
-              <p className="text-muted-foreground">{t('job.postedBy', language)}: {job.poster_name}</p>
+              <p className="text-muted-foreground">{t('job.postedBy', language)}: <Link to={`/user/${job.user_id}`} className="text-primary hover:underline">{job.poster_name}</Link></p>
               {posterRating && (
                 <Badge variant="outline" className="gap-1 text-xs">
                   <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
