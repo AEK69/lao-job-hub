@@ -181,6 +181,21 @@ const ChatPage = () => {
     );
   }
 
+  // KYC enforcement for chat
+  if (profile?.kyc_status !== 'approved') {
+    return (
+      <div className="min-h-screen flex flex-col"><Header />
+        <div className="flex-1 flex items-center justify-center">
+          <Card className="p-8 text-center max-w-md">
+            <span className="text-5xl block mb-4">⏳</span>
+            <h2 className="text-xl font-bold mb-2">{l('ຕ້ອງຢືນຢັນຕົວຕົນກ່ອນ', 'ต้องยืนยันตัวตนก่อน', 'KYC Required')}</h2>
+            <p className="text-muted-foreground mb-4">{l('ກະລຸນາຢືນຢັນ KYC ກ່ອນໃຊ້ແຊັດ', 'กรุณายืนยัน KYC ก่อนใช้แชท', 'Please verify your identity before using chat')}</p>
+            <Link to="/kyc"><Button>{l('ໄປຢືນຢັນ', 'ไปยืนยัน', 'Go Verify')}</Button></Link>
+          </Card>
+        </div><Footer /></div>
+    );
+  }
+
   const activeConv = conversations.find(c => c.id === activeConvId);
 
   return (

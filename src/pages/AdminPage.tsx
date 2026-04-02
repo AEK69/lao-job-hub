@@ -580,11 +580,12 @@ const AdminPage = () => {
                 <label className="text-sm font-semibold mb-2 block">{l('ຈຳນວນ', 'จำนวน', 'Amount')}</label>
                 <Input type="number" min="0" placeholder="0" value={coinAmount} onChange={e => setCoinAmount(e.target.value)} className="text-lg h-12" />
               </div>
-              <div className="flex gap-2">
-                {[10, 50, 100, 500].map(amt => (
-                  <Button key={amt} variant="outline" size="sm" className="flex-1" onClick={() => setCoinAmount(String(amt))}>{amt}</Button>
+              <div className="flex gap-2 flex-wrap">
+                {[1000, 5000, 10000, 50000, 100000, 500000, 1000000].map(amt => (
+                  <Button key={amt} variant="outline" size="sm" className="text-xs" onClick={() => setCoinAmount(String(amt))}>{amt >= 1000 ? `${(amt/1000)}K` : amt}</Button>
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground">{l('1 ຫຼຽນ = 1 ກີບ (1,000 - 1,000,000)', '1 เหรียญ = 1 กีบ (1,000 - 1,000,000)', '1 coin = 1 KIP (1,000 - 1,000,000)')}</p>
             </div>
             <DialogFooter className="flex gap-2">
               <Button variant="outline" onClick={() => setCoinDialog(null)}>{l('ຍົກເລີກ', 'ยกเลิก', 'Cancel')}</Button>
