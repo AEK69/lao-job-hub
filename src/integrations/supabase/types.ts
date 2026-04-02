@@ -361,6 +361,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      transfer_coins: {
+        Args: { _amount: number; _description?: string; _to_user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
