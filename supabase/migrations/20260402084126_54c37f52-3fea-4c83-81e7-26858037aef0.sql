@@ -1,0 +1,3 @@
+
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS accepted_by UUID;
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMPTZ;

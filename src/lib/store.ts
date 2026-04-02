@@ -21,6 +21,8 @@ export interface Job {
   work_date?: string | null;
   work_time?: string | null;
   image_url?: string | null;
+  accepted_by?: string | null;
+  accepted_at?: string | null;
   status: string;
   created_at: string;
   updated_at: string;

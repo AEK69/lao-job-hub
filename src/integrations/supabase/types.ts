@@ -92,6 +92,8 @@ export type Database = {
       }
       jobs: {
         Row: {
+          accepted_at: string | null
+          accepted_by: string | null
           address: string
           category: string
           created_at: string
@@ -116,6 +118,8 @@ export type Database = {
           work_time: string | null
         }
         Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
           address: string
           category: string
           created_at?: string
@@ -140,6 +144,8 @@ export type Database = {
           work_time?: string | null
         }
         Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
           address?: string
           category?: string
           created_at?: string
@@ -353,6 +359,10 @@ export type Database = {
           _job_id?: string
           _type: string
         }
+        Returns: boolean
+      }
+      transfer_coins: {
+        Args: { _amount: number; _description?: string; _to_user_id: string }
         Returns: boolean
       }
     }

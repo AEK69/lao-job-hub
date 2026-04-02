@@ -7,7 +7,7 @@ import { Footer } from '@/components/Footer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { MapPin, Phone, Clock, Flame, ArrowLeft, MessageCircle, Star } from 'lucide-react';
+import { MapPin, Phone, Clock, Flame, ArrowLeft, MessageCircle, Star, CheckCircle, HandCoins } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,6 +15,7 @@ import { useState, useEffect } from 'react';
 import { JobDetailSkeleton } from '@/components/LoadingSkeleton';
 import { formatSalary } from '@/lib/constants';
 import { ReviewDialog } from '@/components/ReviewDialog';
+import Swal from 'sweetalert2';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -28,12 +29,13 @@ L.Icon.Default.mergeOptions({
 const JobDetailPage = () => {
   const { id } = useParams();
   const { language } = useAppStore();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [showReview, setShowReview] = useState(false);
   const [posterRating, setPosterRating] = useState<{ avg: number; count: number } | null>(null);
+  const [acceptorName, setAcceptorName] = useState<string | null>(null);
 
   const l = (lo: string, th: string, en: string) => language === 'en' ? en : language === 'th' ? th : lo;
 
@@ -48,6 +50,11 @@ const JobDetailPage = () => {
         if (reviews && reviews.length > 0) {
           const avg = reviews.reduce((s, r) => s + r.rating, 0) / reviews.length;
           setPosterRating({ avg: Math.round(avg * 10) / 10, count: reviews.length });
+        }
+        // Load acceptor name
+        if ((data as any).accepted_by) {
+          const { data: p } = await supabase.from('profiles').select('display_name').eq('user_id', (data as any).accepted_by).single();
+          if (p) setAcceptorName(p.display_name);
         }
       }
     };
@@ -70,15 +77,11 @@ const JobDetailPage = () => {
 
   const district = districts.find(d => d.id === job.district);
 
-  // Parse Google Map link for coordinates
   const parseGoogleMapCoords = (address: string): [number, number] | null => {
-    // Match @lat,lng patterns
     const atMatch = address.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
     if (atMatch) return [parseFloat(atMatch[1]), parseFloat(atMatch[2])];
-    // Match q=lat,lng
     const qMatch = address.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
     if (qMatch) return [parseFloat(qMatch[1]), parseFloat(qMatch[2])];
-    // Match place/lat,lng
     const placeMatch = address.match(/place\/[^/]*\/(-?\d+\.?\d*),(-?\d+\.?\d*)/);
     if (placeMatch) return [parseFloat(placeMatch[1]), parseFloat(placeMatch[2])];
     return null;
@@ -91,8 +94,82 @@ const JobDetailPage = () => {
 
   const handleChat = () => {
     if (!user) { navigate('/auth'); return; }
+    if (profile?.kyc_status !== 'approved') {
+      Swal.fire({ icon: 'warning', title: l('ຕ້ອງຢືນຢັນຕົວຕົນກ່ອນ', 'ต้องยืนยันตัวตนก่อน', 'KYC Required'), text: l('ກະລຸນາຢືນຢັນ KYC ກ່ອນແຊັດ', 'กรุณายืนยัน KYC ก่อนแชท', 'Please complete KYC before chatting'), confirmButtonText: l('ໄປຢືນຢັນ', 'ไปยืนยัน', 'Go Verify') }).then(r => { if (r.isConfirmed) navigate('/kyc'); });
+      return;
+    }
     navigate(`/chat?job=${job.id}&to=${job.user_id}`);
   };
+
+  // Accept job (worker applies)
+  const handleAcceptJob = async () => {
+    if (!user) { navigate('/auth'); return; }
+    if (profile?.kyc_status !== 'approved') {
+      Swal.fire({ icon: 'warning', title: l('ຕ້ອງຢືນຢັນຕົວຕົນກ່ອນ', 'ต้องยืนยันตัวตนก่อน', 'KYC Required'), text: l('ກະລຸນາຢືນຢັນ KYC ກ່ອນຮັບງານ', 'กรุณายืนยัน KYC ก่อนรับงาน', 'Please complete KYC before accepting'), confirmButtonText: l('ໄປຢືນຢັນ', 'ไปยืนยัน', 'Go Verify') }).then(r => { if (r.isConfirmed) navigate('/kyc'); });
+      return;
+    }
+    const result = await Swal.fire({
+      icon: 'question',
+      title: l('ຢືນຢັນຮັບງານ?', 'ยืนยันรับงาน?', 'Accept this job?'),
+      text: l(`ຄ່າຕອບແທນ: ${formatSalary(job.salary)} ₭`, `ค่าตอบแทน: ${formatSalary(job.salary)} ₭`, `Compensation: ${formatSalary(job.salary)} ₭`),
+      showCancelButton: true,
+      confirmButtonText: l('ຮັບງານ', 'รับงาน', 'Accept'),
+      cancelButtonText: l('ຍົກເລີກ', 'ยกเลิก', 'Cancel'),
+      confirmButtonColor: 'hsl(142, 76%, 36%)',
+    });
+    if (!result.isConfirmed) return;
+
+    const { error } = await supabase.from('jobs').update({
+      accepted_by: user.id,
+      accepted_at: new Date().toISOString(),
+      status: 'accepted',
+    } as any).eq('id', job.id).eq('status', 'active');
+
+    if (error) { Swal.fire({ icon: 'error', text: error.message }); return; }
+    Swal.fire({ icon: 'success', title: l('ຮັບງານສຳເລັດ!', 'รับงานสำเร็จ!', 'Job Accepted!'), timer: 2000, showConfirmButton: false });
+    setJob({ ...job, accepted_by: user.id, accepted_at: new Date().toISOString(), status: 'accepted' });
+    setAcceptorName(profile?.display_name || '');
+  };
+
+  // Employer confirms completion & pays
+  const handleConfirmComplete = async () => {
+    if (!job.accepted_by) return;
+    const salaryAmount = parseInt(job.salary) || 0;
+
+    const result = await Swal.fire({
+      icon: 'question',
+      title: l('ຢືນຢັນງານສຳເລັດ?', 'ยืนยันงานเสร็จ?', 'Confirm job complete?'),
+      html: salaryAmount > 0 ? l(`ຈະໂອນ ${salaryAmount.toLocaleString()} ຫຼຽນ ໃຫ້ຜູ້ຮັບງານ`, `จะโอน ${salaryAmount.toLocaleString()} เหรียญ ให้ผู้รับงาน`, `Transfer ${salaryAmount.toLocaleString()} coins to worker`) : '',
+      showCancelButton: true,
+      confirmButtonText: l('ຢືນຢັນ & ຈ່າຍ', 'ยืนยัน & จ่าย', 'Confirm & Pay'),
+      cancelButtonText: l('ຍົກເລີກ', 'ยกเลิก', 'Cancel'),
+      confirmButtonColor: 'hsl(142, 76%, 36%)',
+    });
+    if (!result.isConfirmed) return;
+
+    // Transfer coins if salary > 0
+    if (salaryAmount > 0) {
+      const { data: success } = await supabase.rpc('transfer_coins' as any, {
+        _to_user_id: job.accepted_by,
+        _amount: salaryAmount,
+        _description: `${l('ຈ່າຍຄ່າງານ', 'จ่ายค่างาน', 'Job payment')}: ${job.title}`,
+      });
+      if (!success) {
+        Swal.fire({ icon: 'error', title: l('ຫຼຽນບໍ່ພໍ', 'เหรียญไม่พอ', 'Not enough coins'), text: l('ກະລຸນາເຕີມຫຼຽນກ່ອນ', 'กรุณาเติมเหรียญก่อน', 'Please top up coins first') });
+        return;
+      }
+    }
+
+    await supabase.from('jobs').update({ status: 'completed' } as any).eq('id', job.id);
+    Swal.fire({ icon: 'success', title: l('ສຳເລັດ! ຈ່າຍແລ້ວ', 'สำเร็จ! จ่ายแล้ว', 'Complete! Paid'), timer: 2000, showConfirmButton: false });
+    setJob({ ...job, status: 'completed' });
+  };
+
+  const isOwner = user?.id === job.user_id;
+  const isAcceptor = user?.id === job.accepted_by;
+  const isAccepted = job.status === 'accepted';
+  const isCompleted = job.status === 'completed';
+  const isActive = job.status === 'active';
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -104,11 +181,31 @@ const JobDetailPage = () => {
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <Card className="p-6">
+            {/* Status banner */}
+            {isAccepted && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-blue-600" />
+                <div>
+                  <div className="font-semibold text-blue-800 text-sm">{l('ງານຖືກຮັບແລ້ວ', 'งานถูกรับแล้ว', 'Job Accepted')}</div>
+                  <div className="text-xs text-blue-600">{l('ໂດຍ', 'โดย', 'By')}: {acceptorName || '...'}</div>
+                </div>
+              </div>
+            )}
+            {isCompleted && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4 flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                <div className="font-semibold text-green-800 text-sm">{l('ງານສຳເລັດແລ້ວ ✅', 'งานเสร็จแล้ว ✅', 'Job Completed ✅')}</div>
+              </div>
+            )}
+
             <div className="flex items-start gap-3 flex-wrap mb-4">
               {job.is_featured && <Badge className="gap-1 bg-accent text-accent-foreground"><Star className="h-3 w-3" /> {l('ແນະນຳ', 'แนะนำ', 'Featured')}</Badge>}
               {job.is_urgent && <Badge variant="destructive" className="gap-1"><Flame className="h-3 w-3" /> {t('job.urgent', language)}</Badge>}
               <Badge variant={job.post_type === 'hiring' ? 'default' : 'secondary'}>
                 {t(job.post_type === 'hiring' ? 'job.type.employer' : 'job.type.worker', language)}
+              </Badge>
+              <Badge variant="outline" className={isCompleted ? 'border-green-500 text-green-700' : isAccepted ? 'border-blue-500 text-blue-700' : ''}>
+                {isCompleted ? l('ສຳເລັດ', 'เสร็จ', 'Done') : isAccepted ? l('ກຳລັງເຮັດ', 'กำลังทำ', 'In Progress') : l('ເປີດຮັບ', 'เปิดรับ', 'Open')}
               </Badge>
             </div>
 
@@ -184,6 +281,20 @@ const JobDetailPage = () => {
             </div>
 
             <div className="flex gap-3 flex-wrap">
+              {/* Accept Job button - for non-owners on active hiring jobs */}
+              {user && !isOwner && isActive && job.post_type === 'hiring' && (
+                <Button size="lg" className="flex-1 gap-2 bg-green-600 hover:bg-green-700" onClick={handleAcceptJob}>
+                  <HandCoins className="h-4 w-4" /> {l('ຮັບງານນີ້', 'รับงานนี้', 'Accept Job')}
+                </Button>
+              )}
+
+              {/* Employer confirm completion */}
+              {isOwner && isAccepted && (
+                <Button size="lg" className="flex-1 gap-2 bg-green-600 hover:bg-green-700" onClick={handleConfirmComplete}>
+                  <CheckCircle className="h-4 w-4" /> {l('ຢືນຢັນສຳເລັດ & ຈ່າຍ', 'ยืนยันเสร็จ & จ่าย', 'Confirm & Pay')}
+                </Button>
+              )}
+
               <Button size="lg" className="flex-1 gap-2" asChild>
                 <a href={`tel:${job.phone}`}><Phone className="h-4 w-4" /> {t('job.contact', language)}</a>
               </Button>
@@ -192,9 +303,11 @@ const JobDetailPage = () => {
                   <Button size="lg" variant="outline" className="flex-1 gap-2" onClick={handleChat}>
                     <MessageCircle className="h-4 w-4" /> {l('ແຊັດ', 'แชท', 'Chat')}
                   </Button>
-                  <Button size="lg" variant="secondary" className="gap-2" onClick={() => setShowReview(true)}>
-                    <Star className="h-4 w-4" /> {l('ລີວິວ', 'รีวิว', 'Review')}
-                  </Button>
+                  {isCompleted && (
+                    <Button size="lg" variant="secondary" className="gap-2" onClick={() => setShowReview(true)}>
+                      <Star className="h-4 w-4" /> {l('ລີວິວ', 'รีวิว', 'Review')}
+                    </Button>
+                  )}
                 </>
               )}
             </div>
