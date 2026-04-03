@@ -165,9 +165,9 @@ const ChatPage = () => {
       return;
     }
 
-    await sendMessage(`💰 ${l('ສົ່ງ', 'ส่ง', 'Sent')} ${coinAmount.toLocaleString()} 🪙`);
+    await sendMessage(`💰 ${l('ສົ່ງ', 'ส่ง', 'Sent')} ${coinAmount.toLocaleString()}₭`);
     await refreshProfile();
-    Swal.fire({ icon: 'success', title: l('ສົ່ງສຳເລັດ!', 'ส่งสำเร็จ!', 'Sent!'), text: `${coinAmount.toLocaleString()} 🪙`, timer: 2000, showConfirmButton: false });
+    Swal.fire({ icon: 'success', title: l('ສົ່ງສຳເລັດ!', 'ส่งสำเร็จ!', 'Sent!'), text: `${coinAmount.toLocaleString()}₭`, timer: 2000, showConfirmButton: false });
   };
 
   if (!user) {
