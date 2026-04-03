@@ -62,7 +62,11 @@ export function calculateJobPostingCost(options: {
  * Format salary with locale
  */
 export function formatSalary(salary: string | number): string {
-  return Number(salary).toLocaleString();
+  return Number(salary).toLocaleString() + '₭';
+}
+
+export function formatCoins(amount: number | string): string {
+  return Number(amount).toLocaleString() + '₭';
 }
 
 /**

@@ -168,7 +168,7 @@ const ProfilePage = () => {
                 <h1 className="text-xl font-bold">{profile?.display_name || '—'}</h1>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   {kycBadge()}
-                  <Badge variant="secondary" className="gap-1">🪙 {profile?.coin_balance || 0}</Badge>
+                  <Badge variant="secondary" className="gap-1">💰 {(profile?.coin_balance || 0).toLocaleString()}₭</Badge>
                   {avgRating > 0 && (
                     <Badge variant="outline" className="gap-1">
                       <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" /> {avgRating}

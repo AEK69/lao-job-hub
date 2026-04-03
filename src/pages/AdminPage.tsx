@@ -143,7 +143,7 @@ const AdminPage = () => {
     });
     if (error) toast.error(error.message);
     else {
-      toast.success(`${coinDialog.mode === 'add' ? '+' : '-'}${amount} 🪙`);
+      toast.success(`${coinDialog.mode === 'add' ? '+' : '-'}${amount.toLocaleString()}₭`);
       setCoinDialog(null); setCoinAmount(''); loadUsers();
     }
   };
@@ -240,7 +240,7 @@ const AdminPage = () => {
               { icon: Users, label: l('ຜູ້ໃຊ້ທັງໝົດ', 'ผู้ใช้ทั้งหมด', 'Total Users'), value: users.length, color: 'text-blue-600 bg-blue-100' },
               { icon: Briefcase, label: l('ວຽກ Active', 'งาน Active', 'Active Jobs'), value: activeJobs, color: 'text-green-600 bg-green-100' },
               { icon: UserCheck, label: l('KYC ຢືນຢັນ', 'KYC ยืนยัน', 'KYC Approved'), value: kycApproved, color: 'text-purple-600 bg-purple-100' },
-              { icon: Coins, label: l('ຫຼຽນທັງໝົດ', 'เหรียญทั้งหมด', 'Total Coins'), value: totalCoins, color: 'text-amber-600 bg-amber-100' },
+              { icon: Coins, label: l('ຫຼຽນທັງໝົດ', 'เหรียญทั้งหมด', 'Total Coins'), value: totalCoins.toLocaleString() + '₭', color: 'text-amber-600 bg-amber-100' },
             ].map((stat, i) => (
               <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
                 <Card className="p-4">
@@ -350,7 +350,7 @@ const AdminPage = () => {
                           </Badge>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="gap-1 font-semibold text-xs">🪙 {u.coin_balance}</Badge>
+                          <Badge variant="outline" className="gap-1 font-semibold text-xs">{u.coin_balance.toLocaleString()}₭</Badge>
                           <Button size="sm" variant="outline" className="h-8 gap-1 text-green-600 border-green-300 hover:bg-green-50" onClick={() => { setCoinDialog({ user: u, mode: 'add' }); setCoinAmount(''); }}>
                             <Plus className="h-3 w-3" />
                           </Button>
@@ -574,7 +574,7 @@ const AdminPage = () => {
             <div className="space-y-4">
               <div className="bg-muted p-4 rounded text-center">
                 <div className="text-sm text-muted-foreground mb-1">{l('ຍອດປະຈຸບັນ', 'ยอดปัจจุบัน', 'Current Balance')}</div>
-                <div className="text-3xl font-bold">{coinDialog.user.coin_balance} 🪙</div>
+                <div className="text-3xl font-bold">{coinDialog.user.coin_balance.toLocaleString()}₭</div>
               </div>
               <div>
                 <label className="text-sm font-semibold mb-2 block">{l('ຈຳນວນ', 'จำนวน', 'Amount')}</label>
@@ -582,7 +582,7 @@ const AdminPage = () => {
               </div>
               <div className="flex gap-2 flex-wrap">
                 {[1000, 5000, 10000, 50000, 100000, 500000, 1000000].map(amt => (
-                  <Button key={amt} variant="outline" size="sm" className="text-xs" onClick={() => setCoinAmount(String(amt))}>{amt >= 1000 ? `${(amt/1000)}K` : amt}</Button>
+                  <Button key={amt} variant="outline" size="sm" className="text-xs" onClick={() => setCoinAmount(String(amt))}>{amt.toLocaleString()}₭</Button>
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">{l('1 ຫຼຽນ = 1 ກີບ (1,000 - 1,000,000)', '1 เหรียญ = 1 กีบ (1,000 - 1,000,000)', '1 coin = 1 KIP (1,000 - 1,000,000)')}</p>
