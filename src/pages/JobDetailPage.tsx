@@ -126,6 +126,17 @@ const JobDetailPage = () => {
     } as any).eq('id', job.id).eq('status', 'active');
 
     if (error) { Swal.fire({ icon: 'error', text: error.message }); return; }
+
+    // Send notification to job owner
+    await supabase.from('notifications').insert({
+      user_id: job.user_id,
+      type: 'job_accepted',
+      title: l('ມີຄົນຮັບງານຂອງທ່ານ!', 'มีคนรับงานของคุณ!', 'Someone accepted your job!'),
+      body: `${profile?.display_name} ${l('ຮັບງານ', 'รับงาน', 'accepted')}: ${job.title}`,
+      job_id: job.id,
+      sender_id: user.id,
+    } as any);
+
     Swal.fire({ icon: 'success', title: l('ຮັບງານສຳເລັດ!', 'รับงานสำเร็จ!', 'Job Accepted!'), timer: 2000, showConfirmButton: false });
     setJob({ ...job, accepted_by: user.id, accepted_at: new Date().toISOString(), status: 'accepted' });
     setAcceptorName(profile?.display_name || '');
@@ -161,6 +172,17 @@ const JobDetailPage = () => {
     }
 
     await supabase.from('jobs').update({ status: 'completed' } as any).eq('id', job.id);
+
+    // Notify worker of completion
+    await supabase.from('notifications').insert({
+      user_id: job.accepted_by,
+      type: 'job_completed',
+      title: l('ງານສຳເລັດ! ໄດ້ຮັບຫຼຽນ', 'งานเสร็จ! ได้รับเหรียญ', 'Job Complete! Coins received'),
+      body: `${job.title} - ${salaryAmount.toLocaleString()}₭`,
+      job_id: job.id,
+      sender_id: user!.id,
+    } as any);
+
     Swal.fire({ icon: 'success', title: l('ສຳເລັດ! ຈ່າຍແລ້ວ', 'สำเร็จ! จ่ายแล้ว', 'Complete! Paid'), timer: 2000, showConfirmButton: false });
     setJob({ ...job, status: 'completed' });
   };

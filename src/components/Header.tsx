@@ -5,6 +5,7 @@ import { t } from '@/lib/i18n';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { motion } from 'framer-motion';
 import { Briefcase, MessageCircle, User, LogOut, Coins } from 'lucide-react';
+import { NotificationBell } from './NotificationBell';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -75,10 +76,11 @@ export function Header() {
                   )}
                 </Button>
               </Link>
+              <NotificationBell />
               <Link to="/profile">
                 <Button variant={location.pathname === '/profile' ? 'default' : 'ghost'} size="sm" className="gap-1">
                   <Coins className="h-4 w-4" />
-                  <span className="text-xs">{profile?.coin_balance || 0}</span>
+                  <span className="text-xs">{(profile?.coin_balance || 0).toLocaleString()}₭</span>
                 </Button>
               </Link>
               <Button variant="ghost" size="sm" onClick={signOut} className="gap-1">

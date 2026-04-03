@@ -137,7 +137,7 @@ const ChatPage = () => {
 
     const { value: amount } = await Swal.fire({
       title: l('ສົ່ງຫຼຽນ', 'ส่งเหรียญ', 'Send Coins'),
-      text: l(`ຍອດເຫຼືອ: ${profile?.coin_balance || 0} 🪙 (1 ຫຼຽນ = 1 ກີບ)`, `ยอดเงิน: ${profile?.coin_balance || 0} 🪙 (1 เหรียญ = 1 กีบ)`, `Balance: ${profile?.coin_balance || 0} 🪙 (1 coin = 1 KIP)`),
+      text: l(`ຍອດເຫຼືອ: ${(profile?.coin_balance || 0).toLocaleString()}₭`, `ยอดเงิน: ${(profile?.coin_balance || 0).toLocaleString()}₭`, `Balance: ${(profile?.coin_balance || 0).toLocaleString()}₭`),
       input: 'number',
       inputPlaceholder: l('ຈຳນວນຫຼຽນ', 'จำนวนเหรียญ', 'Amount'),
       showCancelButton: true,
@@ -165,9 +165,9 @@ const ChatPage = () => {
       return;
     }
 
-    await sendMessage(`💰 ${l('ສົ່ງ', 'ส่ง', 'Sent')} ${coinAmount.toLocaleString()} 🪙`);
+    await sendMessage(`💰 ${l('ສົ່ງ', 'ส่ง', 'Sent')} ${coinAmount.toLocaleString()}₭`);
     await refreshProfile();
-    Swal.fire({ icon: 'success', title: l('ສົ່ງສຳເລັດ!', 'ส่งสำเร็จ!', 'Sent!'), text: `${coinAmount.toLocaleString()} 🪙`, timer: 2000, showConfirmButton: false });
+    Swal.fire({ icon: 'success', title: l('ສົ່ງສຳເລັດ!', 'ส่งสำเร็จ!', 'Sent!'), text: `${coinAmount.toLocaleString()}₭`, timer: 2000, showConfirmButton: false });
   };
 
   if (!user) {
