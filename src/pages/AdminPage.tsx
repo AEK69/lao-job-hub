@@ -574,7 +574,7 @@ const AdminPage = () => {
             <div className="space-y-4">
               <div className="bg-muted p-4 rounded text-center">
                 <div className="text-sm text-muted-foreground mb-1">{l('ຍອດປະຈຸບັນ', 'ยอดปัจจุบัน', 'Current Balance')}</div>
-                <div className="text-3xl font-bold">{coinDialog.user.coin_balance} 🪙</div>
+                <div className="text-3xl font-bold">{coinDialog.user.coin_balance.toLocaleString()}₭</div>
               </div>
               <div>
                 <label className="text-sm font-semibold mb-2 block">{l('ຈຳນວນ', 'จำนวน', 'Amount')}</label>
