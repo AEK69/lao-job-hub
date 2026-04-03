@@ -143,7 +143,7 @@ const AdminPage = () => {
     });
     if (error) toast.error(error.message);
     else {
-      toast.success(`${coinDialog.mode === 'add' ? '+' : '-'}${amount} 🪙`);
+      toast.success(`${coinDialog.mode === 'add' ? '+' : '-'}${amount.toLocaleString()}₭`);
       setCoinDialog(null); setCoinAmount(''); loadUsers();
     }
   };
