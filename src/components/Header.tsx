@@ -5,6 +5,7 @@ import { t } from '@/lib/i18n';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { motion } from 'framer-motion';
 import { Briefcase, MessageCircle, User, LogOut, Coins } from 'lucide-react';
+import { NotificationBell } from './NotificationBell';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
