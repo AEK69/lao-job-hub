@@ -350,7 +350,7 @@ const AdminPage = () => {
                           </Badge>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="gap-1 font-semibold text-xs">🪙 {u.coin_balance}</Badge>
+                          <Badge variant="outline" className="gap-1 font-semibold text-xs">{u.coin_balance.toLocaleString()}₭</Badge>
                           <Button size="sm" variant="outline" className="h-8 gap-1 text-green-600 border-green-300 hover:bg-green-50" onClick={() => { setCoinDialog({ user: u, mode: 'add' }); setCoinAmount(''); }}>
                             <Plus className="h-3 w-3" />
                           </Button>
