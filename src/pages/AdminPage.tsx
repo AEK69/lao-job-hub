@@ -582,7 +582,7 @@ const AdminPage = () => {
               </div>
               <div className="flex gap-2 flex-wrap">
                 {[1000, 5000, 10000, 50000, 100000, 500000, 1000000].map(amt => (
-                  <Button key={amt} variant="outline" size="sm" className="text-xs" onClick={() => setCoinAmount(String(amt))}>{amt >= 1000 ? `${(amt/1000)}K` : amt}</Button>
+                  <Button key={amt} variant="outline" size="sm" className="text-xs" onClick={() => setCoinAmount(String(amt))}>{amt.toLocaleString()}₭</Button>
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">{l('1 ຫຼຽນ = 1 ກີບ (1,000 - 1,000,000)', '1 เหรียญ = 1 กีบ (1,000 - 1,000,000)', '1 coin = 1 KIP (1,000 - 1,000,000)')}</p>
