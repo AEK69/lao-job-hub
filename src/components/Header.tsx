@@ -4,42 +4,21 @@ import { useAuth } from '@/hooks/useAuth';
 import { t } from '@/lib/i18n';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { motion } from 'framer-motion';
-import { Briefcase, MessageCircle, User, LogOut, Coins } from 'lucide-react';
-import { NotificationBell } from './NotificationBell';
-import { useState, useEffect } from 'react';
+import { Briefcase, User, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
 
 export function Header() {
   const { language } = useAppStore();
-  const { user, profile, signOut } = useAuth();
+  const { user, role, signOut } = useAuth();
   const location = useLocation();
-  const [unreadCount, setUnreadCount] = useState(0);
 
-  useEffect(() => {
-    if (!user) return;
-    const loadUnread = async () => {
-      const { count } = await supabase
-        .from('messages')
-        .select('*, conversations!inner(*)', { count: 'exact', head: true })
-        .eq('is_read', false)
-        .neq('sender_id', user.id)
-        .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`, { referencedTable: 'conversations' });
-      setUnreadCount(count || 0);
-    };
-    loadUnread();
-    const interval = setInterval(loadUnread, 15000);
-    return () => clearInterval(interval);
-  }, [user]);
+  const l = (lo: string, th: string, en: string) => language === 'en' ? en : language === 'th' ? th : lo;
 
   const links = [
     { to: '/', label: t('nav.home', language) },
-    { to: '/jobs', label: t('nav.findJobs', language) },
-    { to: '/post', label: t('nav.postJob', language) },
+    { to: '/jobs', label: l('ລາຍການງານ', 'รายการงาน', 'Jobs') },
+    { to: '/post', label: l('ສ້າງງານ', 'สร้างงาน', 'New Job') },
   ];
-
-  // Admin link removed from public nav - accessible via /admin URL only
 
   return (
     <header className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
@@ -51,10 +30,9 @@ export function Header() {
           >
             <Briefcase className="h-7 w-7 text-primary" />
           </motion.div>
-          <span className="text-xl font-bold text-primary">ວຽກດ່ວນ</span>
+          <span className="text-xl font-bold text-primary">WorkDay</span>
         </Link>
 
-        {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-1">
           {links.map((link) => (
             <Link key={link.to} to={link.to}>
@@ -64,36 +42,23 @@ export function Header() {
             </Link>
           ))}
 
-          {user && (
-            <>
-              <Link to="/chat">
-                <Button variant={location.pathname === '/chat' ? 'default' : 'ghost'} size="sm" className="relative gap-1">
-                  <MessageCircle className="h-4 w-4" />
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] rounded-full h-4 w-4 flex items-center justify-center">
-                      {unreadCount}
-                    </span>
-                  )}
-                </Button>
-              </Link>
-              <NotificationBell />
-              <Link to="/profile">
-                <Button variant={location.pathname === '/profile' ? 'default' : 'ghost'} size="sm" className="gap-1">
-                  <Coins className="h-4 w-4" />
-                  <span className="text-xs">{(profile?.coin_balance || 0).toLocaleString()}₭</span>
-                </Button>
-              </Link>
-              <Button variant="ghost" size="sm" onClick={signOut} className="gap-1">
-                <LogOut className="h-4 w-4" />
+          {user && role === 'admin' && (
+            <Link to="/admin">
+              <Button variant={location.pathname === '/admin' ? 'default' : 'ghost'} size="sm">
+                Admin
               </Button>
-            </>
+            </Link>
           )}
 
-          {!user && (
+          {user ? (
+            <Button variant="ghost" size="sm" onClick={signOut} className="gap-1">
+              <LogOut className="h-4 w-4" />
+            </Button>
+          ) : (
             <Link to="/auth">
               <Button size="sm" className="gap-1">
                 <User className="h-4 w-4" />
-                {language === 'en' ? 'Login' : language === 'th' ? 'เข้าสู่ระบบ' : 'ເຂົ້າສູ່ລະບົບ'}
+                {l('ເຂົ້າສູ່ລະບົບ', 'เข้าสู่ระบบ', 'Login')}
               </Button>
             </Link>
           )}
@@ -101,9 +66,7 @@ export function Header() {
           <LanguageSwitcher />
         </nav>
 
-        {/* Mobile items (hidden on md) */}
         <div className="flex md:hidden items-center gap-2">
-          {/* We only keep language switcher here for mobile since BottomNav has the rest */}
           <LanguageSwitcher />
         </div>
       </div>
