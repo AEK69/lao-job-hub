@@ -47,6 +47,36 @@ export type Database = {
         }
         Relationships: []
       }
+      company_settings: {
+        Row: {
+          address: string | null
+          company_name: string | null
+          id: string
+          logo_url: string | null
+          phone: string | null
+          receipt_footer: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          company_name?: string | null
+          id?: string
+          logo_url?: string | null
+          phone?: string | null
+          receipt_footer?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          company_name?: string | null
+          id?: string
+          logo_url?: string | null
+          phone?: string | null
+          receipt_footer?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       job_images: {
         Row: {
           created_at: string | null
@@ -167,6 +197,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string | null
+          id: string
+          job_id: string | null
+          read: boolean | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string | null
+          id?: string
+          job_id?: string | null
+          read?: boolean | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string | null
+          id?: string
+          job_id?: string | null
+          read?: boolean | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       payments: {
         Row: {
