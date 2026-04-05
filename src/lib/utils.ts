@@ -10,7 +10,7 @@ export function cn(...inputs: ClassValue[]) {
 export function formatDate(dateString: string, language: string = "lo"): string {
   try {
     const date = new Date(dateString);
-    const locale = language === "en" ? enUS : laLocale;
+    const locale = enUS;
     return format(date, "dd MMM yyyy HH:mm", { locale });
   } catch (error) {
     console.error("Error formatting date:", error);

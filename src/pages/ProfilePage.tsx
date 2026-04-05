@@ -9,7 +9,7 @@ import { Navigate, Link } from 'react-router-dom';
 import { User, LogOut } from 'lucide-react';
 
 const ProfilePage = () => {
-  const { user, role, loading, signOut } = useAuth();
+  const { user, userRole: role, loading, signOut } = useAuth();
   const { language } = useAppStore();
   const l = (lo: string, th: string, en: string) => language === 'en' ? en : language === 'th' ? th : lo;
 

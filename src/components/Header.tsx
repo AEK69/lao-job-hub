@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 
 export function Header() {
   const { language } = useAppStore();
-  const { user, role, signOut } = useAuth();
+  const { user, userRole: role, signOut } = useAuth();
   const location = useLocation();
 
   const l = (lo: string, th: string, en: string) => language === 'en' ? en : language === 'th' ? th : lo;

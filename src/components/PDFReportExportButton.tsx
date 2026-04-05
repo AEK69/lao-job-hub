@@ -92,7 +92,7 @@ export const PDFReportExportButton = ({
           jobNumber: p.jobs?.job_number || '—',
           customer: p.jobs?.customer_name || '—',
           amount: p.amount,
-          method: getMethodLabel(p.payment_method, language),
+          method: getMethodLabel(p.method, language),
         })),
       };
 
