@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 export function BottomNavigation() {
   const location = useLocation();
   const { language } = useAppStore();
-  const { user, role } = useAuth();
+  const { user, userRole: role } = useAuth();
 
   const l = (lo: string, th: string, en: string) => language === 'en' ? en : language === 'th' ? th : lo;
 

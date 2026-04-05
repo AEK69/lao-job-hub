@@ -22,7 +22,7 @@ interface AuditLog { id: string; user_id: string | null; action: string; target_
 
 const AdminPage = () => {
   const { language } = useAppStore();
-  const { user, role, signOut } = useAuth();
+  const { user, userRole: role, signOut } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);

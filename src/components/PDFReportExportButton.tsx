@@ -3,7 +3,7 @@ import { PDFDownloadLink } from '@react-pdf/renderer';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/lib/store';
 import { supabase } from '@/integrations/supabase/client';
-import MonthlyReportDocument from './MonthlyReportDocument';
+import { MonthlyReportDocument } from './MonthlyReportDocument';
 import { Download } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -61,13 +61,13 @@ export const PDFReportExportButton = ({
       // Calculate statistics
       const totalRevenue = payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
       const cashPayments = payments
-        ?.filter((p) => p.payment_method === 'cash')
+        ?.filter((p) => p.method === 'cash')
         .reduce((sum, p) => sum + p.amount, 0) || 0;
       const bcelPayments = payments
-        ?.filter((p) => p.payment_method === 'bcel')
+        ?.filter((p) => p.method === 'bcel')
         .reduce((sum, p) => sum + p.amount, 0) || 0;
       const bankPayments = payments
-        ?.filter((p) => p.payment_method === 'bank_transfer')
+        ?.filter((p) => p.method === 'transfer')
         .reduce((sum, p) => sum + p.amount, 0) || 0;
 
       const completedJobs = jobsStats?.filter((j) => j.job_status === 'done').length || 0;
@@ -92,7 +92,7 @@ export const PDFReportExportButton = ({
           jobNumber: p.jobs?.job_number || '—',
           customer: p.jobs?.customer_name || '—',
           amount: p.amount,
-          method: getMethodLabel(p.payment_method, language),
+          method: getMethodLabel(p.method, language),
         })),
       };
 

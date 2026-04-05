@@ -11,9 +11,10 @@ interface Payment {
   id: string;
   job_id: string;
   amount: number;
-  payment_method: string;
+  method: string;
+  payment_type: string | null;
   reference_note: string | null;
-  received_by_id: string | null;
+  received_by: string | null;
   created_at: string;
 }
 
@@ -27,7 +28,6 @@ export const PaymentHistory = ({ jobId, onPaymentsLoaded }: PaymentHistoryProps)
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
   const t = (lo: string, en: string) => language === 'en' ? en : lo;
 
   useEffect(() => {
@@ -39,144 +39,60 @@ export const PaymentHistory = ({ jobId, onPaymentsLoaded }: PaymentHistoryProps)
           .select('*')
           .eq('job_id', jobId)
           .order('created_at', { ascending: false });
-
         if (fetchError) throw fetchError;
-
         setPayments(data || []);
         onPaymentsLoaded?.(data || []);
       } catch (err: any) {
-        console.error('Error fetching payments:', err);
         setError(err.message);
       } finally {
         setLoading(false);
       }
     };
-
     fetchPayments();
-
-    // Subscribe to real-time changes
-    const channel = supabase
-      .channel(`payments:job_id=eq.${jobId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'payments',
-          filter: `job_id=eq.${jobId}`,
-        },
-        (payload) => {
-          setPayments((prev) => [payload.new as Payment, ...prev]);
-          onPaymentsLoaded?.([payload.new as Payment, ...payments]);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, [jobId]);
 
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
 
-  const getPaymentMethodLabel = (method: string) => {
+  const getMethodLabel = (method: string) => {
     switch (method) {
-      case 'cash':
-        return t('ເງິນສົດ', 'Cash');
-      case 'bcel':
-        return t('BCEL One', 'BCEL One');
-      case 'bank_transfer':
-        return t('ໂອນທະນາຄານ', 'Bank Transfer');
-      default:
-        return method;
+      case 'cash': return t('ເງິນສົດ', 'Cash');
+      case 'bcel': return 'BCEL One';
+      case 'transfer': return t('ໂອນທະນາຄານ', 'Transfer');
+      default: return method;
     }
   };
 
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    );
-  }
-
-  if (loading) {
-    return <div className="text-center py-8 text-muted-foreground">{t('ກຳລັງໂຫຼດ...', 'Loading...')}</div>;
-  }
-
-  if (payments.length === 0) {
-    return (
-      <Card className="p-8 text-center border-2 border-dashed">
-        <p className="text-muted-foreground">{t('ຍັງບໍ່ມີການຊຳລະ', 'No payments recorded yet')}</p>
-      </Card>
-    );
-  }
+  if (error) return <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>;
+  if (loading) return <div className="text-center py-8 text-muted-foreground">{t('ກຳລັງໂຫຼດ...', 'Loading...')}</div>;
+  if (payments.length === 0) return <Card className="p-8 text-center border-2 border-dashed"><p className="text-muted-foreground">{t('ຍັງບໍ່ມີການຊຳລະ', 'No payments recorded yet')}</p></Card>;
 
   return (
     <Card className="overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b">
+          <thead className="bg-muted/50 border-b">
             <tr>
-              <th className="px-4 py-3 text-left font-medium text-gray-700">
-                {t('ວັນທີ-ເວລາ', 'Date & Time')}
-              </th>
-              <th className="px-4 py-3 text-right font-medium text-gray-700">
-                {t('ຈຳນວນ', 'Amount')}
-              </th>
-              <th className="px-4 py-3 text-left font-medium text-gray-700">
-                {t('ວິທີ', 'Method')}
-              </th>
-              <th className="px-4 py-3 text-left font-medium text-gray-700">
-                {t('ໝາຍເຫດ', 'Note')}
-              </th>
-              <th className="px-4 py-3 text-center font-medium text-gray-700">
-                {t('ໃບຮັບ', 'Receipt')}
-              </th>
+              <th className="px-4 py-3 text-left font-medium">{t('ວັນທີ-ເວລາ', 'Date & Time')}</th>
+              <th className="px-4 py-3 text-right font-medium">{t('ຈຳນວນ', 'Amount')}</th>
+              <th className="px-4 py-3 text-left font-medium">{t('ວິທີ', 'Method')}</th>
+              <th className="px-4 py-3 text-left font-medium">{t('ໝາຍເຫດ', 'Note')}</th>
             </tr>
           </thead>
           <tbody>
             {payments.map((payment) => (
-              <tr key={payment.id} className="border-b hover:bg-gray-50 transition">
-                <td className="px-4 py-3 whitespace-nowrap text-gray-900">
-                  {formatDate(payment.created_at, language)}
-                </td>
-                <td className="px-4 py-3 text-right font-semibold text-blue-700">
-                  {payment.amount.toLocaleString('en-US')} {t('ກີບ', 'kip')}
-                </td>
-                <td className="px-4 py-3">
-                  <span className="inline-block px-2.5 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
-                    {getPaymentMethodLabel(payment.payment_method)}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-gray-600 max-w-xs truncate">
-                  {payment.reference_note || '—'}
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    title={t('ດາວໂຫຼດໃບຮັບ', 'Download receipt')}
-                  >
-                    <Download className="w-4 h-4" />
-                  </Button>
-                </td>
+              <tr key={payment.id} className="border-b hover:bg-muted/30 transition">
+                <td className="px-4 py-3 whitespace-nowrap">{formatDate(payment.created_at, language)}</td>
+                <td className="px-4 py-3 text-right font-semibold text-primary">{payment.amount.toLocaleString()} ₭</td>
+                <td className="px-4 py-3"><span className="px-2.5 py-1 bg-primary/10 text-primary rounded text-xs font-medium">{getMethodLabel(payment.method)}</span></td>
+                <td className="px-4 py-3 text-muted-foreground max-w-xs truncate">{payment.reference_note || '—'}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-
-      {/* Summary Footer */}
-      <div className="bg-gray-50 px-4 py-3 border-t flex justify-between items-center">
-        <span className="text-sm font-medium text-gray-700">
-          {t('ລວມທັງໝົດ', 'Total')}
-        </span>
-        <span className="text-lg font-bold text-green-700">
-          {totalPaid.toLocaleString('en-US')} {t('ກີບ', 'kip')}
-        </span>
+      <div className="bg-muted/50 px-4 py-3 border-t flex justify-between items-center">
+        <span className="text-sm font-medium">{t('ລວມທັງໝົດ', 'Total')}</span>
+        <span className="text-lg font-bold text-primary">{totalPaid.toLocaleString()} ₭</span>
       </div>
     </Card>
   );

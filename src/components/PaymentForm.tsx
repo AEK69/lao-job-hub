@@ -87,9 +87,9 @@ export const PaymentForm = ({
         .insert({
           job_id: jobId,
           amount: Math.round(amountNum),
-          payment_method: paymentMethod,
+          method: paymentMethod,
           reference_note: referenceNote || null,
-          received_by_id: user?.id,
+          received_by: user?.id,
         });
 
       if (insertError) {
