@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useAuth } from '@/hooks/useAuth';
+import { t, districts, categories } from '@/lib/i18n';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -8,78 +9,167 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { Coins, Star, Upload, ImageIcon } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
-interface Service { id: string; name: string; base_price: number; }
+import { JOB_POSTING_COSTS, calculateJobPostingCost } from '@/lib/constants';
+import { LocationPicker } from '@/components/LocationPicker';
 
 const PostJobPage = () => {
   const { language } = useAppStore();
-  const { user } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
-  const l = (lo: string, en: string) => language === 'en' ? en : lo;
 
-  const [services, setServices] = useState<Service[]>([]);
+  const l = (lo: string, th: string, en: string) => language === 'en' ? en : language === 'th' ? th : lo;
+
   const [form, setForm] = useState({
-    customer_name: '', customer_phone: '', customer_address: '',
-    job_type: '', description: '', base_price: 0, material_cost: 0, discount: 0,
-    priority: 'normal', scheduled_date: '', scheduled_time: '',
-    payment_method: 'cash',
+    title: '', description: '', category: '', district: '',
+    salary: '', salary_type: 'day', phone: '', address: '',
+    post_type: 'hiring', poster_name: '',
+    is_urgent: false, is_featured: false,
+    work_date: '', work_time: '',
+    lat: null as number | null, lng: null as number | null,
+    gender_pref: 'any', // any, male, female
   });
+  const [jobImage, setJobImage] = useState<File | null>(null);
+  const [jobImagePreview, setJobImagePreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Auto-fill from profile
   useEffect(() => {
-    supabase.from('services').select('id, name, base_price').eq('active', true).order('name').then(({ data }) => {
-      setServices((data || []) as Service[]);
-    });
-  }, []);
+    if (profile) {
+      setForm(prev => ({
+        ...prev,
+        poster_name: prev.poster_name || profile.display_name || '',
+        phone: prev.phone || profile.phone || '',
+        address: prev.address || profile.address || '',
+        district: prev.district || profile.district || '',
+      }));
+    }
+  }, [profile]);
 
   if (!user) return <Navigate to="/auth" />;
 
-  const update = (key: string, value: any) => setForm(p => ({ ...p, [key]: value }));
-  const total = form.base_price + form.material_cost - form.discount;
+  // Check KYC status
+  if (profile?.kyc_status !== 'approved') {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <div className="flex-1 flex items-center justify-center">
+          <Card className="p-8 text-center max-w-md">
+            <span className="text-5xl block mb-4">⏳</span>
+            <h2 className="text-xl font-bold mb-2">{l('ລໍຖ້າຢືນຢັນ', 'รอยืนยัน', 'Pending Verification')}</h2>
+            <p className="text-muted-foreground">
+              {l('ບັນຊີຂອງທ່ານຍັງບໍ່ໄດ້ຮັບການຢືນຢັນ ກະລຸນາລໍຖ້າ Admin ຢືນຢັນກ່ອນໂພສວຽກ',
+                'บัญชีของคุณยังไม่ได้รับการยืนยัน กรุณารอ Admin ยืนยันก่อนโพสต์งาน',
+                'Your account is not yet verified. Please wait for admin approval before posting.')}
+            </p>
+          </Card>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
-  const formatPhone = (val: string) => {
-    const digits = val.replace(/\D/g, '').slice(0, 10);
-    if (digits.length <= 3) return digits;
-    if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
-    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  const coinCost = calculateJobPostingCost({
+    isUrgent: form.is_urgent,
+    isFeatured: form.is_featured,
+  });
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setJobImage(file);
+      setJobImagePreview(URL.createObjectURL(file));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.customer_name || !form.customer_phone || !form.job_type) {
-      toast.error(l('ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບ', 'Fill required fields'));
+    if (!form.title || !form.description || !form.category || !form.district || !form.salary || !form.phone || !form.poster_name) {
+      toast.error(l('ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບ', 'กรุณากรอกข้อมูลให้ครบ', 'Please fill all fields'));
       return;
     }
-    setSubmitting(true);
-    const { data, error } = await supabase.from('jobs').insert({
-      customer_name: form.customer_name,
-      customer_phone: form.customer_phone.replace(/-/g, ''),
-      customer_address: form.customer_address || null,
-      job_type: form.job_type,
-      description: form.description || null,
-      base_price: form.base_price,
-      material_cost: form.material_cost,
-      discount: form.discount,
-      priority: form.priority,
-      scheduled_date: form.scheduled_date || null,
-      scheduled_time: form.scheduled_time || null,
-      payment_method: form.payment_method,
-      created_by: user.id,
-    } as any).select().single();
 
-    if (error) { toast.error(error.message); }
+    if (coinCost > 0 && (profile?.coin_balance || 0) < coinCost) {
+      toast.error(l('ຫຼຽນບໍ່ພໍ!', 'เหรียญไม่พอ!', 'Not enough coins!'));
+      return;
+    }
+
+    setSubmitting(true);
+
+    if (coinCost > 0) {
+      const spendType = form.is_featured ? 'spend_featured' : 'spend_urgent';
+      const { data: success } = await supabase.rpc('spend_coins', {
+        _amount: coinCost, _type: spendType, _description: `Post: ${form.title}`,
+      });
+      if (!success) {
+        toast.error(l('ການໃຊ້ຫຼຽນລົ້ມເຫຼວ', 'การใช้เหรียญล้มเหลว', 'Coin transaction failed'));
+        setSubmitting(false);
+        return;
+      }
+    }
+
+    let finalDescription = form.description;
+    if (form.gender_pref === 'male') finalDescription = `[${l('ຮັບສະເພາະ:', 'รับเฉพาะ:', 'Required:')} 👨 ${l('ຜູ້ຊາຍ', 'ผู้ชาย', 'Male')}]\n${finalDescription}`;
+    if (form.gender_pref === 'female') finalDescription = `[${l('ຮັບສະເພາະ:', 'รับเฉพาะ:', 'Required:')} 👩 ${l('ຜູ້ຍິງ', 'ผู้หญิง', 'Female')}]\n${finalDescription}`;
+
+    let image_url: string | null = null;
+    if (jobImage) {
+      const ext = jobImage.name.split('.').pop();
+      const filePath = `${user.id}/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('job-images').upload(filePath, jobImage);
+      if (!upErr) {
+        const { data } = supabase.storage.from('job-images').getPublicUrl(filePath);
+        image_url = data.publicUrl;
+      }
+    }
+
+    const { error } = await supabase.from('jobs').insert({
+      user_id: user.id, title: form.title, description: finalDescription,
+      category: form.category, district: form.district, salary: form.salary,
+      salary_type: form.salary_type, phone: form.phone, address: form.address,
+      post_type: form.post_type, poster_name: form.poster_name,
+      is_urgent: form.is_urgent, is_featured: form.is_featured,
+      work_date: form.work_date || null, work_time: form.work_time || null,
+      lat: form.lat, lng: form.lng,
+      image_url,
+    } as any);
+
+    if (error) toast.error(error.message);
     else {
-      const jobNumber = (data as any)?.job_number || '';
-      await supabase.from('audit_logs').insert({ action: `ສ້າງໃບງານ ${jobNumber}`, target_table: 'jobs', target_id: (data as any)?.id, user_id: user.id } as any);
-      toast.success(l(`ສ້າງງານ ${jobNumber} ສຳເລັດ!`, `Job ${jobNumber} created!`));
+      toast.success(t('post.success', language));
+      await refreshProfile();
       navigate('/jobs');
     }
     setSubmitting(false);
+  };
+
+  const update = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
+
+  const handlePhoneChange = (val: string) => {
+    let digits = val.replace(/\D/g, '');
+    if (!digits) return update('phone', '');
+
+    if (!digits.startsWith('856')) {
+      if (digits.startsWith('020')) digits = '85620' + digits.substring(3);
+      else if (digits.startsWith('20')) digits = '85620' + digits.substring(2);
+      else digits = '85620' + digits;
+    }
+
+    let formatted = '+856 20';
+    const rest = digits.substring(5);
+    
+    if (rest.length > 0) formatted += ' ' + rest.substring(0, 2);
+    if (rest.length > 2) formatted += ' ' + rest.substring(2, 5);
+    if (rest.length > 5) formatted += ' ' + rest.substring(5, 8);
+    
+    update('phone', formatted);
   };
 
   return (
@@ -87,51 +177,160 @@ const PostJobPage = () => {
       <Header />
       <div className="container py-6 flex-1 max-w-2xl">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-2xl font-bold mb-6">✍️ {l('ສ້າງງານໃໝ່', 'Create New Job')}</h1>
+          <h1 className="text-2xl font-bold mb-6">✍️ {t('nav.postJob', language)}</h1>
           <Card className="p-6">
             <form onSubmit={handleSubmit} className="space-y-5">
-              <div><Label>{l('ຊື່ລູກຄ້າ', 'Customer Name')} *</Label><Input value={form.customer_name} onChange={e => update('customer_name', e.target.value)} /></div>
-              <div><Label>{l('ເບີໂທ', 'Phone')} *</Label><Input value={form.customer_phone} onChange={e => update('customer_phone', formatPhone(e.target.value))} placeholder="020-XXXX-XXXX" /></div>
-              <div><Label>{l('ທີ່ຢູ່', 'Address')}</Label><Input value={form.customer_address} onChange={e => update('customer_address', e.target.value)} /></div>
+              {/* Post Type */}
+              <div className="grid grid-cols-2 gap-3">
+                <Button type="button" variant={form.post_type === 'hiring' ? 'default' : 'outline'} className="h-auto py-3 flex-col gap-1" onClick={() => update('post_type', 'hiring')}>
+                  <span className="text-xl">🏢</span>
+                  <span className="text-xs">{t('post.hiring', language)}</span>
+                </Button>
+                <Button type="button" variant={form.post_type === 'seeking' ? 'default' : 'outline'} className="h-auto py-3 flex-col gap-1" onClick={() => update('post_type', 'seeking')}>
+                  <span className="text-xl">🙋</span>
+                  <span className="text-xs">{t('post.seeking', language)}</span>
+                </Button>
+              </div>
+
               <div>
-                <Label>{l('ປະເພດງານ', 'Job Type')} *</Label>
-                <Select value={form.job_type} onValueChange={v => {
-                  const svc = services.find(s => s.name === v);
-                  update('job_type', v);
-                  if (svc) update('base_price', svc.base_price);
-                }}>
-                  <SelectTrigger><SelectValue placeholder={l('ເລືອກ...', 'Select...')} /></SelectTrigger>
-                  <SelectContent>{services.map(s => <SelectItem key={s.id} value={s.name}>{s.name} ({s.base_price.toLocaleString()}₭)</SelectItem>)}</SelectContent>
-                </Select>
+                <Label>{t('job.postedBy', language)} *</Label>
+                <Input value={form.poster_name} onChange={e => update('poster_name', e.target.value)} />
               </div>
-              <div><Label>{l('ລາຍລະອຽດ', 'Description')}</Label><Textarea value={form.description} onChange={e => update('description', e.target.value)} rows={3} /></div>
-              <div className="grid grid-cols-3 gap-3">
-                <div><Label>{l('ລາຄາ', 'Base')} (₭)</Label><Input type="number" value={form.base_price} onChange={e => update('base_price', Number(e.target.value))} /></div>
-                <div><Label>{l('ວັດສະດຸ', 'Material')} (₭)</Label><Input type="number" value={form.material_cost} onChange={e => update('material_cost', Number(e.target.value))} /></div>
-                <div><Label>{l('ສ່ວນຫຼຸດ', 'Discount')} (₭)</Label><Input type="number" value={form.discount} onChange={e => update('discount', Number(e.target.value))} /></div>
+              <div>
+                <Label>{t('post.title', language)} *</Label>
+                <Input value={form.title} onChange={e => update('title', e.target.value)} />
               </div>
+              <div>
+                <Label>{t('post.description', language)} *</Label>
+                <Textarea value={form.description} onChange={e => update('description', e.target.value)} rows={4} />
+              </div>
+
+              {/* Job Image */}
+              <div>
+                <Label className="flex items-center gap-1"><ImageIcon className="h-4 w-4" /> {l('ຮູບພາບວຽກ', 'รูปภาพงาน', 'Job Image')}</Label>
+                <label className="flex items-center gap-2 p-4 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors mt-1">
+                  <Upload className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    {jobImage ? jobImage.name : l('ເລືອກຮູບ...', 'เลือกรูป...', 'Choose image...')}
+                  </span>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
+                </label>
+                {jobImagePreview && <img src={jobImagePreview} alt="Preview" className="mt-2 rounded-lg max-h-40 object-cover" />}
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
-                <div><Label>{l('ຄວາມສຳຄັນ', 'Priority')}</Label>
-                  <Select value={form.priority} onValueChange={v => update('priority', v)}><SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent><SelectItem value="normal">{l('ທຳມະດາ', 'Normal')}</SelectItem><SelectItem value="urgent">{l('ດ່ວນ', 'Urgent')}</SelectItem><SelectItem value="critical">{l('ດ່ວນຫຼາຍ', 'Critical')}</SelectItem></SelectContent>
+                <div>
+                  <Label>{t('search.category', language)} *</Label>
+                  <Select value={form.category} onValueChange={v => update('category', v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {categories.map(cat => (<SelectItem key={cat.id} value={cat.id}>{cat.icon} {t(`cat.${cat.id}` as any, language)}</SelectItem>))}
+                    </SelectContent>
                   </Select>
                 </div>
-                <div><Label>{l('ການຈ່າຍ', 'Payment')}</Label>
-                  <Select value={form.payment_method} onValueChange={v => update('payment_method', v)}><SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent><SelectItem value="cash">{l('ເງິນສົດ', 'Cash')}</SelectItem><SelectItem value="bcel">BCEL</SelectItem><SelectItem value="transfer">{l('ໂອນ', 'Transfer')}</SelectItem></SelectContent>
+                <div>
+                  <Label>{t('search.district', language)} *</Label>
+                  <Select value={form.district} onValueChange={v => update('district', v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {districts.map(d => (<SelectItem key={d.id} value={d.id}>{d[language] || d.lo}</SelectItem>))}
+                    </SelectContent>
                   </Select>
                 </div>
               </div>
+
               <div className="grid grid-cols-2 gap-3">
-                <div><Label>{l('ວັນນັດ', 'Date')}</Label><Input type="date" value={form.scheduled_date} onChange={e => update('scheduled_date', e.target.value)} /></div>
-                <div><Label>{l('ເວລາ', 'Time')}</Label><Input type="time" value={form.scheduled_time} onChange={e => update('scheduled_time', e.target.value)} /></div>
+                <div>
+                  <Label>{t('post.salary', language)} (₭) *</Label>
+                  <Input type="number" value={form.salary} onChange={e => update('salary', e.target.value)} />
+                </div>
+                <div>
+                  <Label>&nbsp;</Label>
+                  <Select value={form.salary_type} onValueChange={v => update('salary_type', v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="day">{t('job.perDay', language)}</SelectItem>
+                      <SelectItem value="month">{t('job.perMonth', language)}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="bg-primary/5 rounded-xl p-4 text-center">
-                <span className="text-sm text-muted-foreground">{l('ຍອດລວມ', 'Total')}</span>
-                <div className="text-2xl font-bold text-primary">{total.toLocaleString()}₭</div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>{l('ວັນເລີ່ມວຽກ', 'วันเริ่มงาน', 'Work Date')}</Label>
+                  <Input type="date" value={form.work_date} onChange={e => update('work_date', e.target.value)} />
+                </div>
+                <div>
+                  <Label>{l('ເວລາເລີ່ມ', 'เวลาเริ่ม', 'Start Time')}</Label>
+                  <Input type="time" value={form.work_time} onChange={e => update('work_time', e.target.value)} />
+                </div>
               </div>
-              <Button type="submit" size="lg" className="w-full min-h-[48px]" disabled={submitting}>
-                {submitting ? '...' : l('ສ້າງງານ', 'Create Job')}
+
+              {/* Gender Preference */}
+              <div>
+                <Label className="mb-2 block">{l('ເພດທີ່ຕ້ອງການ', 'เพศที่ต้องการ', 'Gender Preference')}</Label>
+                <div className="flex gap-3">
+                  <Button type="button" variant={form.gender_pref === 'any' ? 'default' : 'outline'} className={`flex-1 px-1 sm:px-3 gap-2 h-16 transition-all ${form.gender_pref === 'any' ? 'shadow-md scale-[1.02]' : 'opacity-70 hover:opacity-100 hover:scale-100'}`} onClick={() => update('gender_pref', 'any')}>
+                    <img src="https://api.dicebear.com/9.x/notionists/svg?seed=Alex&backgroundColor=e5e7eb&radius=50" className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border shadow-sm bg-white" alt="Any" />
+                    <span className="text-xs sm:text-sm font-bold">{l('ບໍ່ຈຳກັດ', 'ไม่จำกัด', 'Any')}</span>
+                  </Button>
+                  <Button type="button" variant={form.gender_pref === 'male' ? 'default' : 'outline'} className={`flex-1 px-1 sm:px-3 gap-2 h-16 transition-all ${form.gender_pref === 'male' ? 'bg-blue-500 hover:bg-blue-600 shadow-md border-transparent text-white scale-[1.02]' : 'opacity-70 hover:opacity-100 hover:border-blue-400 hover:bg-blue-50/10'}`} onClick={() => update('gender_pref', 'male')}>
+                    <img src="https://api.dicebear.com/9.x/notionists/svg?seed=Felix&backgroundColor=bfdbfe&radius=50" className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border shadow-sm bg-white" alt="Male" />
+                    <span className="text-xs sm:text-sm font-bold">{l('ຊາຍ', 'ชาย', 'Male')}</span>
+                  </Button>
+                  <Button type="button" variant={form.gender_pref === 'female' ? 'default' : 'outline'} className={`flex-1 px-1 sm:px-3 gap-2 h-16 transition-all ${form.gender_pref === 'female' ? 'bg-pink-500 hover:bg-pink-600 shadow-md border-transparent text-white scale-[1.02]' : 'opacity-70 hover:opacity-100 hover:border-pink-400 hover:bg-pink-50/10'}`} onClick={() => update('gender_pref', 'female')}>
+                    <img src="https://api.dicebear.com/9.x/notionists/svg?seed=Jocelyn&backgroundColor=fbcfe8&radius=50" className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border shadow-sm bg-white" alt="Female" />
+                    <span className="text-xs sm:text-sm font-bold">{l('ຍິງ', 'หญิง', 'Female')}</span>
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <Label>{t('post.phone', language)} *</Label>
+                <Input value={form.phone} onChange={e => handlePhoneChange(e.target.value)} placeholder="+856 20 XX XXX XXX" />
+              </div>
+              <div>
+                <Label>{l('ລາຍລະອຽດສະຖານທີ່', 'รายละเอียดสถานที่', 'Location Details')} ({l('ທາງເລືອກ', 'ไม่บังคับ', 'Optional')})</Label>
+                <Input value={form.address} onChange={e => update('address', e.target.value)} placeholder={l('ຊື່ສະຖານທີ່, ອາຄານ, ຊອຍ', 'ชื่อสถานที่, อาคาร, หรือซอย', 'Location name, building, or alley')} />
+              </div>
+
+              {/* Map Location Picker */}
+              <LocationPicker 
+                position={form.lat && form.lng ? { lat: form.lat, lng: form.lng } : null}
+                onPositionChange={pos => { update('lat', pos.lat); update('lng', pos.lng); }}
+              />
+
+              {/* Premium options */}
+              <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Coins className="h-4 w-4 text-primary" />
+                  {l('ຕົວເລືອກພຣີມຽມ', 'ตัวเลือกพรีเมียม', 'Premium Options')}
+                  <Badge variant="secondary" className="text-xs">🪙 {profile?.coin_balance || 0}</Badge>
+                </h3>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Switch checked={form.is_urgent} onCheckedChange={v => update('is_urgent', v)} />
+                    <Label className="flex items-center gap-1">🔥 {t('job.urgent', language)}</Label>
+                  </div>
+                  <Badge variant="outline">{JOB_POSTING_COSTS.URGENT} 🪙</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Switch checked={form.is_featured} onCheckedChange={v => update('is_featured', v)} />
+                    <Label className="flex items-center gap-1"><Star className="h-4 w-4" /> {l('ແນະນຳ', 'แนะนำ', 'Featured')}</Label>
+                  </div>
+                  <Badge variant="outline">{JOB_POSTING_COSTS.FEATURED} 🪙</Badge>
+                </div>
+                {coinCost > 0 && (
+                  <div className="text-sm text-primary font-medium text-right">
+                    {l('ຄ່າໃຊ້ຈ່າຍ', 'ค่าใช้จ่าย', 'Total cost')}: {coinCost} 🪙
+                  </div>
+                )}
+              </div>
+
+              <Button type="submit" size="lg" className="w-full" disabled={submitting}>
+                {submitting ? '...' : `${t('post.submit', language)} 🚀`}
               </Button>
             </form>
           </Card>

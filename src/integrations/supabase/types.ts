@@ -14,97 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
-      audit_logs: {
+      coin_transactions: {
         Row: {
-          action: string
-          created_at: string | null
+          admin_id: string | null
+          amount: number
+          created_at: string
+          description: string | null
           id: string
-          new_value: Json | null
-          old_value: Json | null
-          target_id: string | null
-          target_table: string | null
-          user_id: string | null
-        }
-        Insert: {
-          action: string
-          created_at?: string | null
-          id?: string
-          new_value?: Json | null
-          old_value?: Json | null
-          target_id?: string | null
-          target_table?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          action?: string
-          created_at?: string | null
-          id?: string
-          new_value?: Json | null
-          old_value?: Json | null
-          target_id?: string | null
-          target_table?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
-      company_settings: {
-        Row: {
-          address: string | null
-          company_name: string | null
-          id: string
-          logo_url: string | null
-          phone: string | null
-          receipt_footer: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          address?: string | null
-          company_name?: string | null
-          id?: string
-          logo_url?: string | null
-          phone?: string | null
-          receipt_footer?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          address?: string | null
-          company_name?: string | null
-          id?: string
-          logo_url?: string | null
-          phone?: string | null
-          receipt_footer?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      job_images: {
-        Row: {
-          created_at: string | null
-          id: string
-          image_type: string | null
-          image_url: string
           job_id: string | null
-          uploaded_by: string | null
+          type: string
+          user_id: string
         }
         Insert: {
-          created_at?: string | null
+          admin_id?: string | null
+          amount: number
+          created_at?: string
+          description?: string | null
           id?: string
-          image_type?: string | null
-          image_url: string
           job_id?: string | null
-          uploaded_by?: string | null
+          type: string
+          user_id: string
         }
         Update: {
-          created_at?: string | null
+          admin_id?: string | null
+          amount?: number
+          created_at?: string
+          description?: string | null
           id?: string
-          image_type?: string | null
-          image_url?: string
           job_id?: string | null
-          uploaded_by?: string | null
+          type?: string
+          user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "job_images_job_id_fkey"
+            foreignKeyName: "coin_transactions_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          created_at: string
+          id: string
+          job_id: string | null
+          participant_1: string
+          participant_2: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          participant_1: string
+          participant_2: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          participant_1?: string
+          participant_2?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_job_id_fkey"
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
@@ -114,86 +92,119 @@ export type Database = {
       }
       jobs: {
         Row: {
-          amount_paid: number | null
-          assigned_staff_id: string | null
-          base_price: number | null
-          created_at: string | null
-          created_by: string | null
-          customer_address: string | null
-          customer_name: string
-          customer_phone: string
-          deposit_amount: number | null
-          description: string | null
-          discount: number | null
+          accepted_at: string | null
+          accepted_by: string | null
+          address: string
+          category: string
+          created_at: string
+          description: string
+          district: string
           id: string
-          job_number: string
-          job_status: string | null
-          job_type: string
-          material_cost: number | null
-          payment_method: string | null
-          payment_status: string | null
-          priority: string | null
-          scheduled_date: string | null
-          scheduled_time: string | null
-          total_price: number | null
-          updated_at: string | null
+          image_url: string | null
+          is_featured: boolean
+          is_urgent: boolean
+          lat: number | null
+          lng: number | null
+          phone: string
+          post_type: string
+          poster_name: string
+          salary: string
+          salary_type: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+          work_date: string | null
+          work_time: string | null
         }
         Insert: {
-          amount_paid?: number | null
-          assigned_staff_id?: string | null
-          base_price?: number | null
-          created_at?: string | null
-          created_by?: string | null
-          customer_address?: string | null
-          customer_name: string
-          customer_phone: string
-          deposit_amount?: number | null
-          description?: string | null
-          discount?: number | null
+          accepted_at?: string | null
+          accepted_by?: string | null
+          address: string
+          category: string
+          created_at?: string
+          description: string
+          district: string
           id?: string
-          job_number?: string
-          job_status?: string | null
-          job_type: string
-          material_cost?: number | null
-          payment_method?: string | null
-          payment_status?: string | null
-          priority?: string | null
-          scheduled_date?: string | null
-          scheduled_time?: string | null
-          total_price?: number | null
-          updated_at?: string | null
+          image_url?: string | null
+          is_featured?: boolean
+          is_urgent?: boolean
+          lat?: number | null
+          lng?: number | null
+          phone: string
+          post_type: string
+          poster_name: string
+          salary: string
+          salary_type: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          work_date?: string | null
+          work_time?: string | null
         }
         Update: {
-          amount_paid?: number | null
-          assigned_staff_id?: string | null
-          base_price?: number | null
-          created_at?: string | null
-          created_by?: string | null
-          customer_address?: string | null
-          customer_name?: string
-          customer_phone?: string
-          deposit_amount?: number | null
-          description?: string | null
-          discount?: number | null
+          accepted_at?: string | null
+          accepted_by?: string | null
+          address?: string
+          category?: string
+          created_at?: string
+          description?: string
+          district?: string
           id?: string
-          job_number?: string
-          job_status?: string | null
-          job_type?: string
-          material_cost?: number | null
-          payment_method?: string | null
-          payment_status?: string | null
-          priority?: string | null
-          scheduled_date?: string | null
-          scheduled_time?: string | null
-          total_price?: number | null
-          updated_at?: string | null
+          image_url?: string | null
+          is_featured?: boolean
+          is_urgent?: boolean
+          lat?: number | null
+          lng?: number | null
+          phone?: string
+          post_type?: string
+          poster_name?: string
+          salary?: string
+          salary_type?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          work_date?: string | null
+          work_time?: string | null
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          image_url: string | null
+          is_read: boolean
+          sender_id: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          is_read?: boolean
+          sender_id: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          is_read?: boolean
+          sender_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "jobs_assigned_staff_id_fkey"
-            columns: ["assigned_staff_id"]
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
             isOneToOne: false
-            referencedRelation: "staff"
+            referencedRelation: "conversations"
             referencedColumns: ["id"]
           },
         ]
@@ -201,67 +212,40 @@ export type Database = {
       notifications: {
         Row: {
           body: string | null
-          created_at: string | null
+          created_at: string
           id: string
+          is_read: boolean
           job_id: string | null
-          read: boolean | null
+          sender_id: string | null
           title: string
+          type: string
           user_id: string
         }
         Insert: {
           body?: string | null
-          created_at?: string | null
+          created_at?: string
           id?: string
+          is_read?: boolean
           job_id?: string | null
-          read?: boolean | null
+          sender_id?: string | null
           title: string
+          type: string
           user_id: string
         }
         Update: {
           body?: string | null
-          created_at?: string | null
+          created_at?: string
           id?: string
+          is_read?: boolean
           job_id?: string | null
-          read?: boolean | null
+          sender_id?: string | null
           title?: string
+          type?: string
           user_id?: string
-        }
-        Relationships: []
-      }
-      payments: {
-        Row: {
-          amount: number
-          created_at: string | null
-          id: string
-          job_id: string | null
-          method: string
-          payment_type: string | null
-          received_by: string | null
-          reference_note: string | null
-        }
-        Insert: {
-          amount: number
-          created_at?: string | null
-          id?: string
-          job_id?: string | null
-          method: string
-          payment_type?: string | null
-          received_by?: string | null
-          reference_note?: string | null
-        }
-        Update: {
-          amount?: number
-          created_at?: string | null
-          id?: string
-          job_id?: string | null
-          method?: string
-          payment_type?: string | null
-          received_by?: string | null
-          reference_note?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "payments_job_id_fkey"
+            foreignKeyName: "notifications_job_id_fkey"
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
@@ -269,77 +253,121 @@ export type Database = {
           },
         ]
       }
-      services: {
+      profiles: {
         Row: {
-          active: boolean | null
-          base_price: number
-          created_at: string | null
+          address: string | null
+          avatar_url: string | null
+          bio: string | null
+          coin_balance: number
+          created_at: string
+          date_of_birth: string | null
+          display_name: string
+          district: string | null
+          full_name: string | null
+          guardian_name: string | null
+          guardian_phone: string | null
           id: string
-          name: string
+          id_card_url: string | null
+          is_student: boolean | null
+          kyc_status: string
+          phone: string | null
+          updated_at: string
+          user_id: string
         }
         Insert: {
-          active?: boolean | null
-          base_price?: number
-          created_at?: string | null
+          address?: string | null
+          avatar_url?: string | null
+          bio?: string | null
+          coin_balance?: number
+          created_at?: string
+          date_of_birth?: string | null
+          display_name?: string
+          district?: string | null
+          full_name?: string | null
+          guardian_name?: string | null
+          guardian_phone?: string | null
           id?: string
-          name: string
+          id_card_url?: string | null
+          is_student?: boolean | null
+          kyc_status?: string
+          phone?: string | null
+          updated_at?: string
+          user_id: string
         }
         Update: {
-          active?: boolean | null
-          base_price?: number
-          created_at?: string | null
+          address?: string | null
+          avatar_url?: string | null
+          bio?: string | null
+          coin_balance?: number
+          created_at?: string
+          date_of_birth?: string | null
+          display_name?: string
+          district?: string | null
+          full_name?: string | null
+          guardian_name?: string | null
+          guardian_phone?: string | null
           id?: string
-          name?: string
+          id_card_url?: string | null
+          is_student?: boolean | null
+          kyc_status?: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
-      staff: {
+      reviews: {
         Row: {
-          created_at: string | null
+          comment: string | null
+          created_at: string
           id: string
-          name: string
-          phone: string | null
-          skills: string[] | null
-          status: string | null
-          user_id: string | null
+          job_id: string | null
+          rating: number
+          reviewed_id: string
+          reviewer_id: string
         }
         Insert: {
-          created_at?: string | null
+          comment?: string | null
+          created_at?: string
           id?: string
-          name: string
-          phone?: string | null
-          skills?: string[] | null
-          status?: string | null
-          user_id?: string | null
+          job_id?: string | null
+          rating: number
+          reviewed_id: string
+          reviewer_id: string
         }
         Update: {
-          created_at?: string | null
+          comment?: string | null
+          created_at?: string
           id?: string
-          name?: string
-          phone?: string | null
-          skills?: string[] | null
-          status?: string | null
-          user_id?: string | null
+          job_id?: string | null
+          rating?: number
+          reviewed_id?: string
+          reviewer_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "reviews_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
-          created_at: string | null
           id: string
-          role: string
+          role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
-          created_at?: string | null
           id?: string
-          role: string
+          role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
-          created_at?: string | null
           id?: string
-          role?: string
+          role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
         Relationships: []
@@ -349,10 +377,41 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      admin_topup_coins: {
+        Args: {
+          _amount: number
+          _description?: string
+          _target_user_id: string
+        }
+        Returns: undefined
+      }
+      admin_update_kyc: {
+        Args: { _status: string; _target_user_id: string }
+        Returns: undefined
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      spend_coins: {
+        Args: {
+          _amount: number
+          _description?: string
+          _job_id?: string
+          _type: string
+        }
+        Returns: boolean
+      }
+      transfer_coins: {
+        Args: { _amount: number; _description?: string; _to_user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -479,6 +538,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const

@@ -2,76 +2,60 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-export interface StaffProfile {
-  id: string;
-  user_id: string;
-  name: string;
-  phone: string | null;
-  skills: string[];
-  status: 'available' | 'busy' | 'off';
-  created_at: string;
-}
-
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  userRole: 'admin' | 'staff' | 'cashier' | null;
-  staffProfile: StaffProfile | null;
+  profile: Profile | null;
   signOut: () => Promise<void>;
-  refreshUserData: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
+}
+
+export interface Profile {
+  id: string;
+  user_id: string;
+  display_name: string;
+  phone: string | null;
+  avatar_url: string | null;
+  district: string | null;
+  bio: string | null;
+  coin_balance: number;
+  kyc_status: string;
+  id_card_url: string | null;
+  date_of_birth: string | null;
+  is_student: boolean;
+  guardian_name: string | null;
+  guardian_phone: string | null;
+  full_name: string | null;
+  address: string | null;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   loading: true,
-  userRole: null,
-  staffProfile: null,
+  profile: null,
   signOut: async () => {},
-  refreshUserData: async () => {},
+  refreshProfile: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState<'admin' | 'staff' | 'cashier' | null>(null);
-  const [staffProfile, setStaffProfile] = useState<StaffProfile | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
 
-  const fetchUserRole = async (userId: string) => {
-    try {
-      const { data } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .maybeSingle();
-      
-      const role = data?.role as 'admin' | 'staff' | 'cashier' | null || null;
-      setUserRole(role);
-      
-      // Fetch staff profile if user is staff
-      if (role === 'staff') {
-        const { data: staffData } = await supabase
-          .from('staff')
-          .select('*')
-          .eq('user_id', userId)
-          .maybeSingle();
-        setStaffProfile(staffData as StaffProfile | null);
-      } else {
-        setStaffProfile(null);
-      }
-    } catch (error) {
-      console.error('Error fetching user role:', error);
-      setUserRole(null);
-      setStaffProfile(null);
-    }
+  const fetchProfile = async (userId: string) => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+    setProfile(data as Profile | null);
   };
 
-  const refreshUserData = async () => {
-    if (user) {
-      await fetchUserRole(user.id);
-    }
+  const refreshProfile = async () => {
+    if (user) await fetchProfile(user.id);
   };
 
   useEffect(() => {
@@ -80,11 +64,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
-          // Small delay to ensure RLS policies are applied
-          setTimeout(() => fetchUserRole(session.user.id), 100);
+          setTimeout(() => fetchProfile(session.user.id), 0);
         } else {
-          setUserRole(null);
-          setStaffProfile(null);
+          setProfile(null);
         }
         setLoading(false);
       }
@@ -93,35 +75,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserRole(session.user.id);
-      } else {
-        setLoading(false);
-      }
+      if (session?.user) fetchProfile(session.user.id);
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
+  // Poll for KYC status changes (notification)
+  useEffect(() => {
+    if (!user || !profile) return;
+    const prevStatus = profile.kyc_status;
+    const interval = setInterval(async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('kyc_status')
+        .eq('user_id', user.id)
+        .single();
+      if (data && data.kyc_status !== prevStatus) {
+        await fetchProfile(user.id);
+        if (data.kyc_status === 'approved') {
+          // Dynamic import to avoid circular deps
+          import('sonner').then(({ toast }) => {
+            toast.success('🎉 ບັນຊີຂອງທ່ານໄດ້ຮັບການຢືນຢັນແລ້ວ! / Your account has been verified!');
+          });
+        } else if (data.kyc_status === 'rejected') {
+          import('sonner').then(({ toast }) => {
+            toast.error('❌ ການຢືນຢັນຖືກປະຕິເສດ / Verification rejected');
+          });
+        }
+      }
+    }, 30000); // Check every 30s
+    return () => clearInterval(interval);
+  }, [user, profile?.kyc_status]);
+
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
-    setUserRole(null);
-    setStaffProfile(null);
+    setProfile(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, userRole, staffProfile, signOut, refreshUserData }}>
+    <AuthContext.Provider value={{ user, session, loading, profile, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-  return context;
-};
+export const useAuth = () => useContext(AuthContext);

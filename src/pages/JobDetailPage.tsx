@@ -1,390 +1,352 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAppStore, Job } from '@/lib/store';
+import { t, districts } from '@/lib/i18n';
+import { useAuth } from '@/hooks/useAuth';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, Phone, Clock, AlertTriangle, MapPin, Calendar, User, Camera, CreditCard, FileText, Activity } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { MapPin, Phone, Clock, Flame, ArrowLeft, MessageCircle, Star, CheckCircle, HandCoins } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useState, useEffect } from 'react';
 import { JobDetailSkeleton } from '@/components/LoadingSkeleton';
-import { StatusStepper, ALLOWED_TRANSITIONS } from '@/components/StatusStepper';
-import { ImageLightbox } from '@/components/ImageLightbox';
-import { useAuth } from '@/hooks/useAuth';
-import { toast } from 'sonner';
-import { timeAgo } from '@/lib/constants';
+import { formatSalary } from '@/lib/constants';
+import { ReviewDialog } from '@/components/ReviewDialog';
+import Swal from 'sweetalert2';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 
-interface StaffMember { id: string; name: string; phone: string | null; status: string; }
-interface Payment { id: string; amount: number; method: string; payment_type: string | null; reference_note: string | null; created_at: string; }
-interface JobImage { id: string; image_url: string; image_type: string | null; created_at: string | null; }
-interface AuditLog { id: string; action: string; old_value: any; new_value: any; created_at: string; }
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
 
 const JobDetailPage = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
   const { language } = useAppStore();
-  const { user, userRole } = useAuth();
+  const { user, profile } = useAuth();
+  const navigate = useNavigate();
   const [job, setJob] = useState<Job | null>(null);
-  const [staff, setStaff] = useState<StaffMember[]>([]);
-  const [assignedStaff, setAssignedStaff] = useState<StaffMember | null>(null);
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [images, setImages] = useState<JobImage[]>([]);
-  const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [paymentModal, setPaymentModal] = useState(false);
-  const [payForm, setPayForm] = useState({ amount: 0, method: 'cash', payment_type: 'full', reference_note: '' });
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [lightboxIdx, setLightboxIdx] = useState(0);
-  const [uploading, setUploading] = useState(false);
+  const [showReview, setShowReview] = useState(false);
+  const [posterRating, setPosterRating] = useState<{ avg: number; count: number } | null>(null);
+  const [acceptorName, setAcceptorName] = useState<string | null>(null);
 
-  const l = (lo: string, en: string) => language === 'en' ? en : lo;
-  const isAdmin = userRole === 'admin';
-  const isCashier = userRole === 'cashier';
-  const isStaff = userRole === 'staff';
+  const l = (lo: string, th: string, en: string) => language === 'en' ? en : language === 'th' ? th : lo;
 
-  const loadJob = async () => {
-    if (!id) return;
-    const [jobRes, staffRes, payRes, imgRes, logRes] = await Promise.all([
-      supabase.from('jobs').select('*').eq('id', id).single(),
-      supabase.from('staff').select('*').order('name'),
-      supabase.from('payments').select('*').eq('job_id', id).order('created_at', { ascending: false }),
-      supabase.from('job_images').select('*').eq('job_id', id).order('created_at'),
-      supabase.from('audit_logs').select('*').eq('target_id', id).order('created_at', { ascending: false }).limit(50),
-    ]);
-    const jobData = jobRes.data as Job | null;
-    setJob(jobData);
-    const allStaff = (staffRes.data || []) as StaffMember[];
-    setStaff(allStaff);
-    if (jobData?.assigned_staff_id) {
-      setAssignedStaff(allStaff.find(s => s.id === jobData.assigned_staff_id) || null);
-    }
-    setPayments((payRes.data || []) as Payment[]);
-    setImages((imgRes.data || []) as JobImage[]);
-    setLogs((logRes.data || []) as AuditLog[]);
-    setLoading(false);
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase.from('jobs').select('*').eq('id', id).single();
+      setJob(data as Job | null);
+      setLoading(false);
+
+      if (data) {
+        const { data: reviews } = await supabase.from('reviews').select('rating').eq('reviewed_id', data.user_id);
+        if (reviews && reviews.length > 0) {
+          const avg = reviews.reduce((s, r) => s + r.rating, 0) / reviews.length;
+          setPosterRating({ avg: Math.round(avg * 10) / 10, count: reviews.length });
+        }
+        // Load acceptor name
+        if ((data as any).accepted_by) {
+          const { data: p } = await supabase.from('profiles').select('display_name').eq('user_id', (data as any).accepted_by).single();
+          if (p) setAcceptorName(p.display_name);
+        }
+      }
+    };
+    load();
+  }, [id]);
+
+  if (loading) return (
+    <div className="min-h-screen flex flex-col"><Header /><div className="container py-6 flex-1"><JobDetailSkeleton /></div><Footer /></div>
+  );
+
+  if (!job) return (
+    <div className="min-h-screen flex flex-col"><Header />
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center"><span className="text-5xl block mb-4">😕</span>
+          <p className="text-muted-foreground mb-4">{l('ບໍ່ພົບວຽກ', 'ไม่พบงาน', 'Job not found')}</p>
+          <Link to="/jobs"><Button>← {t('nav.findJobs', language)}</Button></Link>
+        </div>
+      </div><Footer /></div>
+  );
+
+  const district = districts.find(d => d.id === job.district);
+
+  const parseGoogleMapCoords = (address: string): [number, number] | null => {
+    const atMatch = address.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+    if (atMatch) return [parseFloat(atMatch[1]), parseFloat(atMatch[2])];
+    const qMatch = address.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+    if (qMatch) return [parseFloat(qMatch[1]), parseFloat(qMatch[2])];
+    const placeMatch = address.match(/place\/[^/]*\/(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+    if (placeMatch) return [parseFloat(placeMatch[1]), parseFloat(placeMatch[2])];
+    return null;
   };
 
-  useEffect(() => { loadJob(); }, [id]);
+  const parsedCoords = parseGoogleMapCoords(job.address);
+  const lat = job.lat || parsedCoords?.[0] || 17.9757;
+  const lng = job.lng || parsedCoords?.[1] || 102.6331;
+  const isGoogleMapLink = job.address.includes('google.com/maps') || job.address.includes('maps.app.goo.gl') || job.address.includes('goo.gl/maps');
 
-  const handleStatusChange = async (newStatus: string) => {
-    if (!job || !id) return;
-    if (newStatus === 'done' && job.payment_status !== 'paid') {
-      toast.error(l('ຕ້ອງຊຳລະກ່ອນປິດງານ', 'Must be paid before closing'));
+  const handleChat = () => {
+    if (!user) { navigate('/auth'); return; }
+    if (profile?.kyc_status !== 'approved') {
+      Swal.fire({ icon: 'warning', title: l('ຕ້ອງຢືນຢັນຕົວຕົນກ່ອນ', 'ต้องยืนยันตัวตนก่อน', 'KYC Required'), text: l('ກະລຸນາຢືນຢັນ KYC ກ່ອນແຊັດ', 'กรุณายืนยัน KYC ก่อนแชท', 'Please complete KYC before chatting'), confirmButtonText: l('ໄປຢືນຢັນ', 'ไปยืนยัน', 'Go Verify') }).then(r => { if (r.isConfirmed) navigate('/kyc'); });
       return;
     }
-    const { error } = await supabase.from('jobs').update({ job_status: newStatus } as any).eq('id', id);
-    if (error) { toast.error(error.message); return; }
-    await supabase.from('audit_logs').insert({ action: `ສະຖານະ: ${job.job_status} → ${newStatus}`, target_table: 'jobs', target_id: id, user_id: user?.id } as any);
-    toast.success(l('ອັດເດດສະຖານະສຳເລັດ', 'Status updated'));
-    loadJob();
+    navigate(`/chat?job=${job.id}&to=${job.user_id}`);
   };
 
-  const handleAssignStaff = async (staffId: string) => {
-    if (!id) return;
-    const { error } = await supabase.from('jobs').update({ assigned_staff_id: staffId } as any).eq('id', id);
-    if (error) { toast.error(error.message); return; }
-    const s = staff.find(x => x.id === staffId);
-    await supabase.from('audit_logs').insert({ action: `ມອບໝາຍ: ${s?.name || staffId}`, target_table: 'jobs', target_id: id, user_id: user?.id } as any);
-    toast.success(l('ມອບໝາຍສຳເລັດ', 'Staff assigned'));
-    loadJob();
-  };
+  // Accept job (worker applies)
+  const handleAcceptJob = async () => {
+    if (!user) { navigate('/auth'); return; }
+    if (profile?.kyc_status !== 'approved') {
+      Swal.fire({ icon: 'warning', title: l('ຕ້ອງຢືນຢັນຕົວຕົນກ່ອນ', 'ต้องยืนยันตัวตนก่อน', 'KYC Required'), text: l('ກະລຸນາຢືນຢັນ KYC ກ່ອນຮັບງານ', 'กรุณายืนยัน KYC ก่อนรับงาน', 'Please complete KYC before accepting'), confirmButtonText: l('ໄປຢືນຢັນ', 'ไปยืนยัน', 'Go Verify') }).then(r => { if (r.isConfirmed) navigate('/kyc'); });
+      return;
+    }
+    const result = await Swal.fire({
+      icon: 'question',
+      title: l('ຢືນຢັນຮັບງານ?', 'ยืนยันรับงาน?', 'Accept this job?'),
+      text: l(`ຄ່າຕອບແທນ: ${formatSalary(job.salary)} ₭`, `ค่าตอบแทน: ${formatSalary(job.salary)} ₭`, `Compensation: ${formatSalary(job.salary)} ₭`),
+      showCancelButton: true,
+      confirmButtonText: l('ຮັບງານ', 'รับงาน', 'Accept'),
+      cancelButtonText: l('ຍົກເລີກ', 'ยกเลิก', 'Cancel'),
+      confirmButtonColor: 'hsl(142, 76%, 36%)',
+    });
+    if (!result.isConfirmed) return;
 
-  const handlePayment = async () => {
-    if (!job || !id || payForm.amount <= 0) return;
-    const { error } = await supabase.from('payments').insert({
-      job_id: id, amount: payForm.amount, method: payForm.method,
-      payment_type: payForm.payment_type, reference_note: payForm.reference_note || null, received_by: user?.id,
+    const { error } = await supabase.from('jobs').update({
+      accepted_by: user.id,
+      accepted_at: new Date().toISOString(),
+      status: 'accepted',
+    } as any).eq('id', job.id).eq('status', 'active');
+
+    if (error) { Swal.fire({ icon: 'error', text: error.message }); return; }
+
+    // Send notification to job owner
+    await supabase.from('notifications').insert({
+      user_id: job.user_id,
+      type: 'job_accepted',
+      title: l('ມີຄົນຮັບງານຂອງທ່ານ!', 'มีคนรับงานของคุณ!', 'Someone accepted your job!'),
+      body: `${profile?.display_name} ${l('ຮັບງານ', 'รับงาน', 'accepted')}: ${job.title}`,
+      job_id: job.id,
+      sender_id: user.id,
     } as any);
-    if (error) { toast.error(error.message); return; }
-    const newPaid = (job.amount_paid || 0) + payForm.amount;
-    const newPayStatus = newPaid >= (job.total_price || 0) ? 'paid' : newPaid > 0 ? 'partial' : 'unpaid';
-    await supabase.from('jobs').update({ amount_paid: newPaid, payment_status: newPayStatus } as any).eq('id', id);
-    await supabase.from('audit_logs').insert({ action: `ຮັບຊຳລະ ${payForm.amount.toLocaleString()}₭ (${payForm.method})`, target_table: 'jobs', target_id: id, user_id: user?.id } as any);
-    toast.success(l(`ຮັບຊຳລະ ${payForm.amount.toLocaleString()}₭ ສຳເລັດ`, `Payment of ${payForm.amount.toLocaleString()}₭ recorded`));
-    setPaymentModal(false);
-    setPayForm({ amount: 0, method: 'cash', payment_type: 'full', reference_note: '' });
-    loadJob();
+
+    Swal.fire({ icon: 'success', title: l('ຮັບງານສຳເລັດ!', 'รับงานสำเร็จ!', 'Job Accepted!'), timer: 2000, showConfirmButton: false });
+    setJob({ ...job, accepted_by: user.id, accepted_at: new Date().toISOString(), status: 'accepted' });
+    setAcceptorName(profile?.display_name || '');
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
-    const file = e.target.files?.[0];
-    if (!file || !id) return;
-    setUploading(true);
-    const ext = file.name.split('.').pop();
-    const path = `${id}/${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from('job-images').upload(path, file);
-    if (upErr) { toast.error(upErr.message); setUploading(false); return; }
-    const { data: urlData } = supabase.storage.from('job-images').getPublicUrl(path);
-    await supabase.from('job_images').insert({ job_id: id, image_url: urlData.publicUrl, image_type: type, uploaded_by: user?.id } as any);
-    toast.success(l('ອັບໂຫລດສຳເລັດ', 'Image uploaded'));
-    setUploading(false);
-    loadJob();
+  // Employer confirms completion & pays
+  const handleConfirmComplete = async () => {
+    if (!job.accepted_by) return;
+    const salaryAmount = parseInt(job.salary) || 0;
+
+    const result = await Swal.fire({
+      icon: 'question',
+      title: l('ຢືນຢັນງານສຳເລັດ?', 'ยืนยันงานเสร็จ?', 'Confirm job complete?'),
+      html: salaryAmount > 0 ? l(`ຈະໂອນ ${salaryAmount.toLocaleString()} ຫຼຽນ ໃຫ້ຜູ້ຮັບງານ`, `จะโอน ${salaryAmount.toLocaleString()} เหรียญ ให้ผู้รับงาน`, `Transfer ${salaryAmount.toLocaleString()} coins to worker`) : '',
+      showCancelButton: true,
+      confirmButtonText: l('ຢືນຢັນ & ຈ່າຍ', 'ยืนยัน & จ่าย', 'Confirm & Pay'),
+      cancelButtonText: l('ຍົກເລີກ', 'ยกเลิก', 'Cancel'),
+      confirmButtonColor: 'hsl(142, 76%, 36%)',
+    });
+    if (!result.isConfirmed) return;
+
+    // Transfer coins if salary > 0
+    if (salaryAmount > 0) {
+      const { data: success } = await supabase.rpc('transfer_coins' as any, {
+        _to_user_id: job.accepted_by,
+        _amount: salaryAmount,
+        _description: `${l('ຈ່າຍຄ່າງານ', 'จ่ายค่างาน', 'Job payment')}: ${job.title}`,
+      });
+      if (!success) {
+        Swal.fire({ icon: 'error', title: l('ຫຼຽນບໍ່ພໍ', 'เหรียญไม่พอ', 'Not enough coins'), text: l('ກະລຸນາເຕີມຫຼຽນກ່ອນ', 'กรุณาเติมเหรียญก่อน', 'Please top up coins first') });
+        return;
+      }
+    }
+
+    await supabase.from('jobs').update({ status: 'completed' } as any).eq('id', job.id);
+
+    // Notify worker of completion
+    await supabase.from('notifications').insert({
+      user_id: job.accepted_by,
+      type: 'job_completed',
+      title: l('ງານສຳເລັດ! ໄດ້ຮັບຫຼຽນ', 'งานเสร็จ! ได้รับเหรียญ', 'Job Complete! Coins received'),
+      body: `${job.title} - ${salaryAmount.toLocaleString()}₭`,
+      job_id: job.id,
+      sender_id: user!.id,
+    } as any);
+
+    Swal.fire({ icon: 'success', title: l('ສຳເລັດ! ຈ່າຍແລ້ວ', 'สำเร็จ! จ่ายแล้ว', 'Complete! Paid'), timer: 2000, showConfirmButton: false });
+    setJob({ ...job, status: 'completed' });
   };
 
-  if (loading) return <div className="min-h-screen flex flex-col"><Header /><div className="container py-6 flex-1"><JobDetailSkeleton /></div><Footer /></div>;
-  if (!job) return <div className="min-h-screen flex flex-col"><Header /><div className="flex-1 flex items-center justify-center"><p className="text-muted-foreground">{l('ບໍ່ພົບງານ', 'Job not found')}</p></div><Footer /></div>;
-
-  const remaining = Math.max(0, (job.total_price || 0) - (job.amount_paid || 0));
-  const payPercent = job.total_price ? Math.min(100, ((job.amount_paid || 0) / job.total_price) * 100) : 0;
-  const priorityColor = job.priority === 'critical' ? 'destructive' : job.priority === 'urgent' ? 'secondary' : 'outline';
-  const priorityLabel = job.priority === 'critical' ? l('ດ່ວນຫຼາຍ', 'Critical') : job.priority === 'urgent' ? l('ດ່ວນ', 'Urgent') : l('ທຳມະດາ', 'Normal');
-  const nextStatus = ALLOWED_TRANSITIONS[job.job_status];
-  const beforeImages = images.filter(i => i.image_type === 'before' || i.image_type === 'other' || !i.image_type);
-  const afterImages = images.filter(i => i.image_type === 'after');
+  const isOwner = user?.id === job.user_id;
+  const isAcceptor = user?.id === job.accepted_by;
+  const isAccepted = job.status === 'accepted';
+  const isCompleted = job.status === 'completed';
+  const isActive = job.status === 'active';
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
-      <div className="container py-6 flex-1">
+      <div className="container py-6 flex-1 max-w-3xl">
         <Link to="/jobs" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4">
-          <ArrowLeft className="h-4 w-4" /> {l('ກັບຄືນ', 'Back')}
+          <ArrowLeft className="h-4 w-4" /> {t('nav.findJobs', language)}
         </Link>
 
-        <div className="grid lg:grid-cols-5 gap-6">
-          {/* LEFT COLUMN - 3/5 */}
-          <div className="lg:col-span-3 space-y-4">
-            {/* Job Header */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-2 flex-wrap mb-3">
-                    <span className="text-2xl font-bold">{job.job_number}</span>
-                    <Badge variant={priorityColor as any}>{priorityLabel}</Badge>
-                    <Badge variant={job.payment_status === 'paid' ? 'default' : 'outline'}>{job.payment_status}</Badge>
-                  </div>
-                  <StatusStepper status={job.job_status} language={language} />
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground mt-3">
-                    <span><Clock className="h-3 w-3 inline mr-1" />{l('ສ້າງ', 'Created')}: {new Date(job.created_at).toLocaleDateString('en-GB')}</span>
-                    <span>{l('ອັດເດດ', 'Updated')}: {timeAgo(job.updated_at, language as any)}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Customer Info */}
-            <Card>
-              <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><User className="h-4 w-4" /> {l('ຂໍ້ມູນລູກຄ້າ', 'Customer Info')}</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-2 gap-3">
-                <div><div className="text-xs text-muted-foreground">{l('ຊື່', 'Name')}</div><div className="font-semibold">{job.customer_name}</div></div>
-                <div><div className="text-xs text-muted-foreground">{l('ໂທ', 'Phone')}</div><a href={`tel:${job.customer_phone}`} className="font-semibold text-primary hover:underline flex items-center gap-1"><Phone className="h-3 w-3" />{job.customer_phone}</a></div>
-                {job.customer_address && <div className="col-span-2"><div className="text-xs text-muted-foreground">{l('ທີ່ຢູ່', 'Address')}</div><div className="font-semibold flex items-center gap-1"><MapPin className="h-3 w-3 text-muted-foreground" />{job.customer_address}</div></div>}
-                {(job.scheduled_date || job.scheduled_time) && <div className="col-span-2"><div className="text-xs text-muted-foreground">{l('ຈອງວັນ', 'Schedule')}</div><div className="font-semibold flex items-center gap-1"><Calendar className="h-3 w-3 text-muted-foreground" />{job.scheduled_date} {job.scheduled_time}</div></div>}
-              </CardContent>
-            </Card>
-
-            {/* Job Details */}
-            <Card>
-              <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><FileText className="h-4 w-4" /> {l('ລາຍລະອຽດງານ', 'Job Details')}</CardTitle></CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  <div><div className="text-xs text-muted-foreground">{l('ປະເພດງານ', 'Type')}</div><div className="font-semibold">{job.job_type}</div></div>
-                  <div><div className="text-xs text-muted-foreground">{l('ລາຍລະອຽດ', 'Description')}</div><div className="text-sm">{job.description || '-'}</div></div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <Card className="p-6">
+            {/* Status banner */}
+            {isAccepted && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-blue-600" />
+                <div>
+                  <div className="font-semibold text-blue-800 text-sm">{l('ງານຖືກຮັບແລ້ວ', 'งานถูกรับแล้ว', 'Job Accepted')}</div>
+                  <div className="text-xs text-blue-600">{l('ໂດຍ', 'โดย', 'By')}: {acceptorName || '...'}</div>
                 </div>
-                <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                  <div className="flex justify-between text-sm"><span>{l('ຄ່າບໍລິການ', 'Base')}</span><span>{(job.base_price || 0).toLocaleString()}₭</span></div>
-                  <div className="flex justify-between text-sm"><span>{l('ຄ່າວັດສະດຸ', 'Material')}</span><span>{(job.material_cost || 0).toLocaleString()}₭</span></div>
-                  {(job.discount || 0) > 0 && <div className="flex justify-between text-sm text-green-600"><span>{l('ສ່ວນຫຼຸດ', 'Discount')}</span><span>-{job.discount.toLocaleString()}₭</span></div>}
-                  <div className="border-t pt-2 flex justify-between font-bold text-primary"><span>{l('ຍອດລວມ', 'Total')}</span><span>{(job.total_price || 0).toLocaleString()}₭</span></div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Images */}
-            <Card>
-              <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Camera className="h-4 w-4" /> {l('ຮູບພາບ', 'Images')}</CardTitle></CardHeader>
-              <CardContent>
-                <Tabs defaultValue="before">
-                  <TabsList className="mb-3">
-                    <TabsTrigger value="before">{l('ກ່ອນ', 'Before')} ({beforeImages.length})</TabsTrigger>
-                    <TabsTrigger value="after">{l('ຫຼັງ', 'After')} ({afterImages.length})</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="before">
-                    {beforeImages.length === 0 ? <p className="text-sm text-muted-foreground py-4 text-center">{l('ບໍ່ມີຮູບ', 'No images')}</p> : (
-                      <div className="grid grid-cols-3 gap-2">{beforeImages.map((img, i) => (
-                        <img key={img.id} src={img.image_url} alt="" className="rounded-lg aspect-square object-cover cursor-pointer hover:opacity-80" onClick={() => { setLightboxIdx(i); setLightboxOpen(true); }} />
-                      ))}</div>
-                    )}
-                  </TabsContent>
-                  <TabsContent value="after">
-                    {afterImages.length === 0 ? <p className="text-sm text-muted-foreground py-4 text-center">{l('ບໍ່ມີຮູບ', 'No images')}</p> : (
-                      <div className="grid grid-cols-3 gap-2">{afterImages.map((img, i) => (
-                        <img key={img.id} src={img.image_url} alt="" className="rounded-lg aspect-square object-cover cursor-pointer hover:opacity-80" onClick={() => { setLightboxIdx(i); setLightboxOpen(true); }} />
-                      ))}</div>
-                    )}
-                  </TabsContent>
-                </Tabs>
-                {(isAdmin || isStaff) && (
-                  <div className="flex gap-2 mt-3">
-                    <label className="flex-1">
-                      <input type="file" accept="image/*" className="hidden" onChange={e => handleImageUpload(e, 'before')} />
-                      <Button variant="outline" size="sm" className="w-full" disabled={uploading} asChild><span>📷 {l('ຮູບກ່ອນ', 'Before')}</span></Button>
-                    </label>
-                    <label className="flex-1">
-                      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handleImageUpload(e, 'after')} />
-                      <Button variant="outline" size="sm" className="w-full" disabled={uploading} asChild><span>📷 {l('ຮູບຫຼັງ', 'After')}</span></Button>
-                    </label>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* RIGHT COLUMN - 2/5 */}
-          <div className="lg:col-span-2 space-y-4">
-            {/* Staff Assignment */}
-            <Card>
-              <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><User className="h-4 w-4" /> {l('ພະນັກງານ', 'Staff')}</CardTitle></CardHeader>
-              <CardContent>
-                {assignedStaff ? (
-                  <div className="flex items-center gap-3 bg-muted/50 p-3 rounded-lg">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">{assignedStaff.name[0]}</div>
-                    <div><div className="font-semibold">{assignedStaff.name}</div>{assignedStaff.phone && <a href={`tel:${assignedStaff.phone}`} className="text-xs text-primary">{assignedStaff.phone}</a>}</div>
-                  </div>
-                ) : <p className="text-sm text-muted-foreground">{l('ຍັງບໍ່ມອບໝາຍ', 'Not assigned')}</p>}
-                {isAdmin && (
-                  <div className="mt-3">
-                    <Select value={job.assigned_staff_id || ''} onValueChange={handleAssignStaff}>
-                      <SelectTrigger><SelectValue placeholder={l('ເລືອກພະນັກງານ', 'Select staff')} /></SelectTrigger>
-                      <SelectContent>
-                        {staff.filter(s => s.status === 'available' || s.id === job.assigned_staff_id).map(s => (
-                          <SelectItem key={s.id} value={s.id}>{s.name} ({s.status})</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Payment Status */}
-            {!isStaff && (
-              <Card>
-                <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><CreditCard className="h-4 w-4" /> {l('ການຊຳລະ', 'Payment')}</CardTitle></CardHeader>
-                <CardContent>
-                  <div className="mb-3">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>{(job.amount_paid || 0).toLocaleString()}₭ / {(job.total_price || 0).toLocaleString()}₭</span>
-                      <span className="text-muted-foreground">{Math.round(payPercent)}%</span>
-                    </div>
-                    <Progress value={payPercent} className="h-2" />
-                    {remaining > 0 && <p className="text-xs text-muted-foreground mt-1">{l('ຄ້າງ', 'Remaining')}: {remaining.toLocaleString()}₭</p>}
-                  </div>
-                  {payments.length > 0 && (
-                    <div className="space-y-2 mb-3 max-h-40 overflow-y-auto">
-                      {payments.map(p => (
-                        <div key={p.id} className="flex justify-between text-sm bg-muted/30 p-2 rounded">
-                          <span>{p.amount.toLocaleString()}₭ • {p.method}</span>
-                          <span className="text-xs text-muted-foreground">{new Date(p.created_at).toLocaleDateString('en-GB')}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="flex gap-2">
-                    {remaining > 0 && (isAdmin || isCashier) && (
-                      <Button size="sm" className="flex-1" onClick={() => { setPayForm(f => ({ ...f, amount: remaining })); setPaymentModal(true); }}>
-                        💳 {l('ຮັບຊຳລະ', 'Record Payment')}
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+              </div>
+            )}
+            {isCompleted && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4 flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                <div className="font-semibold text-green-800 text-sm">{l('ງານສຳເລັດແລ້ວ ✅', 'งานเสร็จแล้ว ✅', 'Job Completed ✅')}</div>
+              </div>
             )}
 
-            {/* Status Change */}
-            <Card>
-              <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Activity className="h-4 w-4" /> {l('ອັດເດດສະຖານະ', 'Update Status')}</CardTitle></CardHeader>
-              <CardContent>
-                {isAdmin ? (
-                  <div className="space-y-2">
-                    <Select value={job.job_status} onValueChange={handleStatusChange}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {['pending', 'active', 'quality_check', 'payment', 'done', 'cancel'].map(s => (
-                          <SelectItem key={s} value={s}>{s}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+            <div className="flex items-start gap-3 flex-wrap mb-4">
+              {job.is_featured && <Badge className="gap-1 bg-accent text-accent-foreground"><Star className="h-3 w-3" /> {l('ແນະນຳ', 'แนะนำ', 'Featured')}</Badge>}
+              {job.is_urgent && <Badge variant="destructive" className="gap-1"><Flame className="h-3 w-3" /> {t('job.urgent', language)}</Badge>}
+              <Badge variant={job.post_type === 'hiring' ? 'default' : 'secondary'}>
+                {t(job.post_type === 'hiring' ? 'job.type.employer' : 'job.type.worker', language)}
+              </Badge>
+              <Badge variant="outline" className={isCompleted ? 'border-green-500 text-green-700' : isAccepted ? 'border-blue-500 text-blue-700' : ''}>
+                {isCompleted ? l('ສຳເລັດ', 'เสร็จ', 'Done') : isAccepted ? l('ກຳລັງເຮັດ', 'กำลังทำ', 'In Progress') : l('ເປີດຮັບ', 'เปิดรับ', 'Open')}
+              </Badge>
+            </div>
+
+            {(job as any).image_url && (
+              <img src={(job as any).image_url} alt={job.title} className="w-full max-h-64 object-cover rounded-lg mb-4" />
+            )}
+
+            <h1 className="text-2xl font-bold mb-2">{job.title}</h1>
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-muted-foreground">{t('job.postedBy', language)}: <Link to={`/user/${job.user_id}`} className="text-primary hover:underline">{job.poster_name}</Link></p>
+              {posterRating && (
+                <Badge variant="outline" className="gap-1 text-xs">
+                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                  {posterRating.avg} ({posterRating.count})
+                </Badge>
+              )}
+            </div>
+
+            <div className="flex items-center gap-4 mb-6 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Clock className="h-4 w-4" />
+                {new Date(job.created_at).toLocaleDateString(language === 'th' ? 'th-TH' : language === 'en' ? 'en-US' : 'lo-LA')}
+              </span>
+              <span className="flex items-center gap-1">
+                <MapPin className="h-4 w-4" />
+                {district?.[language] || district?.lo}
+              </span>
+            </div>
+
+            <div className="bg-primary/5 rounded-xl p-4 mb-6">
+              <div className="text-sm text-muted-foreground">{t('job.salary', language)}</div>
+              <div className="text-2xl font-bold text-primary">
+                💰 {formatSalary(job.salary)} {t(job.salary_type === 'day' ? 'job.perDay' : 'job.perMonth', language)}
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <h3 className="font-semibold mb-2">{t('post.description', language)}</h3>
+              <p className="text-muted-foreground whitespace-pre-wrap">{job.description}</p>
+            </div>
+
+            {(job.work_date || job.work_time) && (
+              <div className="bg-accent/10 rounded-xl p-4 mb-6 flex items-center gap-3">
+                <Clock className="h-5 w-5 text-accent" />
+                <div>
+                  <div className="text-sm text-muted-foreground">{l('ກຳນົດເວລາ', 'กำหนดการ', 'Work Schedule')}</div>
+                  <div className="font-medium">
+                    {job.work_date && new Date(job.work_date).toLocaleDateString(language === 'th' ? 'th-TH' : language === 'en' ? 'en-US' : 'lo-LA')}
+                    {job.work_date && job.work_time && ' • '}
+                    {job.work_time && job.work_time.slice(0, 5)}
                   </div>
-                ) : isStaff && nextStatus && nextStatus !== 'payment' ? (
-                  <Button className="w-full" onClick={() => handleStatusChange(nextStatus)}>
-                    {nextStatus === 'active' ? l('ເລີ່ມດຳເນີນງານ', 'Start Work') :
-                     nextStatus === 'quality_check' ? l('ສົ່ງກວດຄຸນນະພາບ', 'Submit for QC') :
-                     nextStatus}
-                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="mb-6 space-y-2">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-primary" />
+                {isGoogleMapLink ? (
+                  <a href={job.address} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">📍 {l('ເບິ່ງແຜນທີ່', 'ดูแผนที่', 'View on Map')}</a>
                 ) : (
-                  <p className="text-sm text-muted-foreground">{l('ບໍ່ສາມາດອັດເດດ', 'No action available')}</p>
+                  <span>{job.address}</span>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+              <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-primary" /><a href={`tel:${job.phone}`} className="text-primary hover:underline">{job.phone}</a></div>
+            </div>
 
-            {/* Activity Timeline */}
-            <Card>
-              <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Activity className="h-4 w-4" /> {l('ກິດຈະກຳ', 'Activity')}</CardTitle></CardHeader>
-              <CardContent>
-                {logs.length === 0 ? <p className="text-sm text-muted-foreground">{l('ບໍ່ມີກິດຈະກຳ', 'No activity')}</p> : (
-                  <div className="space-y-3 max-h-60 overflow-y-auto">
-                    {logs.map(log => (
-                      <div key={log.id} className="flex gap-3 text-sm">
-                        <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
-                        <div>
-                          <p className="font-medium">{log.action}</p>
-                          <p className="text-xs text-muted-foreground">{new Date(log.created_at!).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+            <div className="rounded-xl overflow-hidden border h-[250px] mb-4">
+              <MapContainer center={[lat, lng]} zoom={14} scrollWheelZoom={false}>
+                <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                <Marker position={[lat, lng]}><Popup>{job.title} - {job.address}</Popup></Marker>
+              </MapContainer>
+            </div>
+
+            <div className="flex gap-3 flex-wrap">
+              {/* Accept Job button - for non-owners on active hiring jobs */}
+              {user && !isOwner && isActive && job.post_type === 'hiring' && (
+                <Button size="lg" className="flex-1 gap-2 bg-green-600 hover:bg-green-700" onClick={handleAcceptJob}>
+                  <HandCoins className="h-4 w-4" /> {l('ຮັບງານນີ້', 'รับงานนี้', 'Accept Job')}
+                </Button>
+              )}
+
+              {/* Employer confirm completion */}
+              {isOwner && isAccepted && (
+                <Button size="lg" className="flex-1 gap-2 bg-green-600 hover:bg-green-700" onClick={handleConfirmComplete}>
+                  <CheckCircle className="h-4 w-4" /> {l('ຢືນຢັນສຳເລັດ & ຈ່າຍ', 'ยืนยันเสร็จ & จ่าย', 'Confirm & Pay')}
+                </Button>
+              )}
+
+              <Button size="lg" className="flex-1 gap-2" asChild>
+                <a href={`tel:${job.phone}`}><Phone className="h-4 w-4" /> {t('job.contact', language)}</a>
+              </Button>
+              {user && user.id !== job.user_id && (
+                <>
+                  <Button size="lg" variant="outline" className="flex-1 gap-2" onClick={handleChat}>
+                    <MessageCircle className="h-4 w-4" /> {l('ແຊັດ', 'แชท', 'Chat')}
+                  </Button>
+                  {isCompleted && (
+                    <Button size="lg" variant="secondary" className="gap-2" onClick={() => setShowReview(true)}>
+                      <Star className="h-4 w-4" /> {l('ລີວິວ', 'รีวิว', 'Review')}
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+          </Card>
+        </motion.div>
       </div>
-
-      {/* Payment Modal */}
-      <Dialog open={paymentModal} onOpenChange={setPaymentModal}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{l('ຮັບຊຳລະ', 'Record Payment')}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div><Label>{l('ຈຳນວນ', 'Amount')} (₭)</Label><Input type="number" value={payForm.amount} onChange={e => setPayForm(f => ({ ...f, amount: Number(e.target.value) }))} /></div>
-            <div><Label>{l('ວິທີຈ່າຍ', 'Method')}</Label>
-              <Select value={payForm.method} onValueChange={v => setPayForm(f => ({ ...f, method: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cash">{l('ເງິນສົດ', 'Cash')}</SelectItem>
-                  <SelectItem value="bcel">BCEL</SelectItem>
-                  <SelectItem value="transfer">{l('ໂອນ', 'Transfer')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div><Label>{l('ປະເພດ', 'Type')}</Label>
-              <Select value={payForm.payment_type} onValueChange={v => setPayForm(f => ({ ...f, payment_type: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="deposit">{l('ມັດຈຳ', 'Deposit')}</SelectItem>
-                  <SelectItem value="partial">{l('ບາງສ່ວນ', 'Partial')}</SelectItem>
-                  <SelectItem value="full">{l('ເຕັມ', 'Full')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div><Label>{l('ໝາຍເຫດ', 'Note')}</Label><Input value={payForm.reference_note} onChange={e => setPayForm(f => ({ ...f, reference_note: e.target.value }))} /></div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPaymentModal(false)}>{l('ຍົກເລີກ', 'Cancel')}</Button>
-            <Button onClick={handlePayment}>{l('ບັນທຶກ', 'Save')}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <ImageLightbox images={images} initialIndex={lightboxIdx} open={lightboxOpen} onOpenChange={setLightboxOpen} />
       <Footer />
+
+      {showReview && (
+        <ReviewDialog
+          open={showReview}
+          onClose={() => setShowReview(false)}
+          reviewedId={job.user_id}
+          reviewedName={job.poster_name}
+          jobId={job.id}
+        />
+      )}
     </div>
   );
 };
