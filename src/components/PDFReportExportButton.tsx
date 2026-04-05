@@ -3,7 +3,7 @@ import { PDFDownloadLink } from '@react-pdf/renderer';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/lib/store';
 import { supabase } from '@/integrations/supabase/client';
-import MonthlyReportDocument from './MonthlyReportDocument';
+import { MonthlyReportDocument } from './MonthlyReportDocument';
 import { Download } from 'lucide-react';
 import { toast } from 'sonner';
 
