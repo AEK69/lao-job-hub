@@ -61,13 +61,13 @@ export const PDFReportExportButton = ({
       // Calculate statistics
       const totalRevenue = payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
       const cashPayments = payments
-        ?.filter((p) => p.payment_method === 'cash')
+        ?.filter((p) => p.method === 'cash')
         .reduce((sum, p) => sum + p.amount, 0) || 0;
       const bcelPayments = payments
-        ?.filter((p) => p.payment_method === 'bcel')
+        ?.filter((p) => p.method === 'bcel')
         .reduce((sum, p) => sum + p.amount, 0) || 0;
       const bankPayments = payments
-        ?.filter((p) => p.payment_method === 'bank_transfer')
+        ?.filter((p) => p.method === 'transfer')
         .reduce((sum, p) => sum + p.amount, 0) || 0;
 
       const completedJobs = jobsStats?.filter((j) => j.job_status === 'done').length || 0;
