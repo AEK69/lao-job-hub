@@ -5,21 +5,34 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import Index from "./pages/Index.tsx";
-import JobsPage from "./pages/JobsPage.tsx";
-import JobDetailPage from "./pages/JobDetailPage.tsx";
-import PostJobPage from "./pages/PostJobPage.tsx";
-import AdminPage from "./pages/AdminPage.tsx";
-import AdminLoginPage from "./pages/AdminLoginPage.tsx";
-import AuthPage from "./pages/AuthPage.tsx";
-import ChatPage from "./pages/ChatPage.tsx";
-import ProfilePage from "./pages/ProfilePage.tsx";
-import KYCPage from "./pages/KYCPage.tsx";
-import NotFound from "./pages/NotFound.tsx";
-import PublicProfilePage from "./pages/PublicProfilePage.tsx";
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
+import Index from "./pages/Index";
+import JobsPage from "./pages/JobsPage";
+import JobDetailPage from "./pages/JobDetailPage";
+import PostJobPage from "./pages/PostJobPage";
+import AdminPage from "./pages/AdminPage";
+import AdminLoginPage from "./pages/AdminLoginPage";
+import AuthPage from "./pages/AuthPage";
+import ChatPage from "./pages/ChatPage";
+import ProfilePage from "./pages/ProfilePage";
+import KYCPage from "./pages/KYCPage";
+import MyJobsPage from "./pages/MyJobsPage";
+import NotFound from "./pages/NotFound";
+import PublicProfilePage from "./pages/PublicProfilePage";
 import { BottomNavigation } from "@/components/BottomNavigation";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { staleTime: 2 * 60 * 1000, retry: 1 },
+  },
+});
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return null;
+}
 
 const App = () => (
   <ErrorBoundary>
@@ -29,6 +42,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <ScrollToTop />
             <div className="pb-16 md:pb-0 min-h-screen flex flex-col">
               <Routes>
                 <Route path="/" element={<Index />} />
@@ -41,6 +55,7 @@ const App = () => (
                 <Route path="/chat" element={<ChatPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/kyc" element={<KYCPage />} />
+                <Route path="/my-jobs" element={<MyJobsPage />} />
                 <Route path="/user/:userId" element={<PublicProfilePage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
