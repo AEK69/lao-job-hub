@@ -82,6 +82,8 @@ const AdminPage = () => {
   const [searchJob, setSearchJob] = useState('');
   const [jobStatusFilter, setJobStatusFilter] = useState<string>('all');
   const [kycFilter, setKycFilter] = useState<string>('all');
+  const [txTypeFilter, setTxTypeFilter] = useState<string>('all');
+  const [txDateFilter, setTxDateFilter] = useState<string>('all'); // all|today|7d|30d
 
   const l = (lo: string, th: string, en: string) => language === 'en' ? en : language === 'th' ? th : lo;
 
@@ -174,15 +176,31 @@ const AdminPage = () => {
     const amount = parseInt(coinAmount);
     if (!amount || amount <= 0) { toast.error(l('ໃສ່ຈຳນວນ', 'กรอกจำนวน', 'Enter amount')); return; }
     const finalAmount = coinDialog.mode === 'add' ? amount : -amount;
-    const { error } = await supabase.rpc('admin_topup_coins', {
-      _to_user_id: coinDialog.user.user_id, _amount: finalAmount,
+    const { data, error } = await supabase.rpc('admin_topup_coins', {
+      _to_user_id: coinDialog.user.user_id,
+      _amount: finalAmount,
       _description: `Admin ${coinDialog.mode === 'add' ? 'top-up' : 'deduction'}: ${amount.toLocaleString()}₭`,
     });
-    if (error) toast.error(error.message);
-    else {
-      toast.success(`${coinDialog.mode === 'add' ? '+' : '-'}${amount.toLocaleString()}₭`);
-      setCoinDialog(null); setCoinAmount(''); loadUsers(); loadTransactions();
+    if (error) {
+      Swal.fire({ icon: 'error', title: l('ລົ້ມເຫລວ', 'ล้มเหลว', 'Failed'), text: error.message });
+      return;
     }
+    const result = data as any;
+    if (!result?.success) {
+      const errMsg = result?.error === 'Insufficient balance'
+        ? l(`ຫຼຽນບໍ່ພໍ (ຍອດ: ${result.balance?.toLocaleString()}₭)`, `เหรียญไม่พอ (ยอด: ${result.balance?.toLocaleString()}₭)`, `Insufficient balance (current: ${result.balance?.toLocaleString()}₭)`)
+        : result?.error || 'Unknown error';
+      Swal.fire({ icon: 'error', title: l('ລົ້ມເຫລວ', 'ล้มเหลว', 'Failed'), text: errMsg });
+      return;
+    }
+    Swal.fire({
+      icon: 'success',
+      title: coinDialog.mode === 'add' ? l('ເຕີມສຳເລັດ ✅', 'เติมสำเร็จ ✅', 'Top-up successful ✅') : l('ຫັກສຳເລັດ ✅', 'หักสำเร็จ ✅', 'Deducted ✅'),
+      html: `<div class="text-2xl font-bold ${coinDialog.mode === 'add' ? 'text-green-600' : 'text-red-600'}">${coinDialog.mode === 'add' ? '+' : '-'}${amount.toLocaleString()}₭</div><div class="text-sm text-muted-foreground mt-2">${l('ຍອດໃໝ່', 'ยอดใหม่', 'New balance')}: ${result.new_balance?.toLocaleString()}₭</div>`,
+      timer: 2500,
+      showConfirmButton: false,
+    });
+    setCoinDialog(null); setCoinAmount(''); loadUsers(); loadTransactions();
   };
 
   if (!user) return <Navigate to="/admin-login" />;
@@ -454,9 +472,56 @@ const AdminPage = () => {
 
             {/* Transactions Tab */}
             <TabsContent value="transactions" className="space-y-2">
-              {transactions.length === 0 ? (
+              <div className="flex gap-2 flex-wrap">
+                <Select value={txTypeFilter} onValueChange={setTxTypeFilter}>
+                  <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{l('ທຸກປະເພດ', 'ทุกประเภท', 'All types')}</SelectItem>
+                    <SelectItem value="admin_topup">📥 {l('ເຕີມໂດຍແອັດມິນ', 'แอดมินเติม', 'Admin top-up')}</SelectItem>
+                    <SelectItem value="admin_deduct">📤 {l('ຫັກໂດຍແອັດມິນ', 'แอดมินหัก', 'Admin deduct')}</SelectItem>
+                    <SelectItem value="job_payment">💼 {l('ຈ່າຍຄ່າງານ', 'จ่ายค่างาน', 'Job payment')}</SelectItem>
+                    <SelectItem value="transfer">🔄 {l('ໂອນ', 'โอน', 'Transfer')}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={txDateFilter} onValueChange={setTxDateFilter}>
+                  <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{l('ທຸກເວລາ', 'ทุกเวลา', 'All time')}</SelectItem>
+                    <SelectItem value="today">{l('ມື້ນີ້', 'วันนี้', 'Today')}</SelectItem>
+                    <SelectItem value="7d">{l('7 ມື້', '7 วัน', 'Last 7d')}</SelectItem>
+                    <SelectItem value="30d">{l('30 ມື້', '30 วัน', 'Last 30d')}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Badge variant="outline" className="ml-auto self-center">
+                  {(() => {
+                    const now = Date.now();
+                    const filtered = transactions.filter(tx => {
+                      if (txTypeFilter !== 'all' && tx.type !== txTypeFilter) return false;
+                      if (txDateFilter !== 'all') {
+                        const age = now - new Date(tx.created_at).getTime();
+                        const limit = txDateFilter === 'today' ? 86400000 : txDateFilter === '7d' ? 7 * 86400000 : 30 * 86400000;
+                        if (age > limit) return false;
+                      }
+                      return true;
+                    });
+                    return `${filtered.length} ${l('ລາຍການ', 'รายการ', 'items')}`;
+                  })()}
+                </Badge>
+              </div>
+              {(() => {
+                const now = Date.now();
+                const filteredTx = transactions.filter(tx => {
+                  if (txTypeFilter !== 'all' && tx.type !== txTypeFilter) return false;
+                  if (txDateFilter !== 'all') {
+                    const age = now - new Date(tx.created_at).getTime();
+                    const limit = txDateFilter === 'today' ? 86400000 : txDateFilter === '7d' ? 7 * 86400000 : 30 * 86400000;
+                    if (age > limit) return false;
+                  }
+                  return true;
+                });
+                return filteredTx.length === 0 ? (
                 <Card className="p-8 text-center text-muted-foreground">{l('ບໍ່ມີປະຫວັດ', 'ไม่มีประวัติ', 'No transactions')}</Card>
-              ) : transactions.map((tx, idx) => (
+              ) : <>{filteredTx.map((tx, idx) => (
                 <motion.div key={tx.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.02 }}>
                   <Card className="p-3">
                     <div className="flex items-center justify-between gap-3">
@@ -476,7 +541,8 @@ const AdminPage = () => {
                     </div>
                   </Card>
                 </motion.div>
-              ))}
+              ))}</>;
+              })()}
             </TabsContent>
           </Tabs>
         </div>
