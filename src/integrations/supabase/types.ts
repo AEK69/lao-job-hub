@@ -49,6 +49,7 @@ export type Database = {
       }
       coin_transactions: {
         Row: {
+          admin_id: string | null
           amount: number
           created_at: string
           description: string | null
@@ -56,8 +57,10 @@ export type Database = {
           id: string
           to_user_id: string
           type: string
+          user_id: string | null
         }
         Insert: {
+          admin_id?: string | null
           amount: number
           created_at?: string
           description?: string | null
@@ -65,8 +68,10 @@ export type Database = {
           id?: string
           to_user_id: string
           type?: string
+          user_id?: string | null
         }
         Update: {
+          admin_id?: string | null
           amount?: number
           created_at?: string
           description?: string | null
@@ -74,6 +79,7 @@ export type Database = {
           id?: string
           to_user_id?: string
           type?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -115,6 +121,7 @@ export type Database = {
           last_message_at: string
           participant_1: string
           participant_2: string
+          updated_at: string
         }
         Insert: {
           created_at?: string
@@ -123,6 +130,7 @@ export type Database = {
           last_message_at?: string
           participant_1: string
           participant_2: string
+          updated_at?: string
         }
         Update: {
           created_at?: string
@@ -131,6 +139,7 @@ export type Database = {
           last_message_at?: string
           participant_1?: string
           participant_2?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -624,6 +633,15 @@ export type Database = {
     Functions: {
       admin_topup_coins: {
         Args: { _amount: number; _description: string; _to_user_id: string }
+        Returns: boolean
+      }
+      admin_update_kyc: {
+        Args: { _status: string; _target_user_id: string }
+        Returns: boolean
+      }
+      has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
+      spend_coins: {
+        Args: { _amount: number; _description: string; _type: string }
         Returns: boolean
       }
       transfer_coins: {
