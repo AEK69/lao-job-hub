@@ -30,7 +30,16 @@ export function Header() {
     };
     loadUnread();
     const interval = setInterval(loadUnread, 15000);
-    return () => clearInterval(interval);
+    // Real-time: refresh on new/updated messages
+    const channel = supabase
+      .channel(`hdr-msgs:${user.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, loadUnread)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, loadUnread)
+      .subscribe();
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const links = [
