@@ -633,7 +633,7 @@ export type Database = {
     Functions: {
       admin_topup_coins: {
         Args: { _amount: number; _description: string; _to_user_id: string }
-        Returns: boolean
+        Returns: Json
       }
       admin_update_kyc: {
         Args: { _status: string; _target_user_id: string }
