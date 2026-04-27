@@ -82,6 +82,8 @@ const AdminPage = () => {
   const [searchJob, setSearchJob] = useState('');
   const [jobStatusFilter, setJobStatusFilter] = useState<string>('all');
   const [kycFilter, setKycFilter] = useState<string>('all');
+  const [txTypeFilter, setTxTypeFilter] = useState<string>('all');
+  const [txDateFilter, setTxDateFilter] = useState<string>('all'); // all|today|7d|30d
 
   const l = (lo: string, th: string, en: string) => language === 'en' ? en : language === 'th' ? th : lo;
 
@@ -174,15 +176,31 @@ const AdminPage = () => {
     const amount = parseInt(coinAmount);
     if (!amount || amount <= 0) { toast.error(l('ໃສ່ຈຳນວນ', 'กรอกจำนวน', 'Enter amount')); return; }
     const finalAmount = coinDialog.mode === 'add' ? amount : -amount;
-    const { error } = await supabase.rpc('admin_topup_coins', {
-      _to_user_id: coinDialog.user.user_id, _amount: finalAmount,
+    const { data, error } = await supabase.rpc('admin_topup_coins', {
+      _to_user_id: coinDialog.user.user_id,
+      _amount: finalAmount,
       _description: `Admin ${coinDialog.mode === 'add' ? 'top-up' : 'deduction'}: ${amount.toLocaleString()}₭`,
     });
-    if (error) toast.error(error.message);
-    else {
-      toast.success(`${coinDialog.mode === 'add' ? '+' : '-'}${amount.toLocaleString()}₭`);
-      setCoinDialog(null); setCoinAmount(''); loadUsers(); loadTransactions();
+    if (error) {
+      Swal.fire({ icon: 'error', title: l('ລົ້ມເຫລວ', 'ล้มเหลว', 'Failed'), text: error.message });
+      return;
     }
+    const result = data as any;
+    if (!result?.success) {
+      const errMsg = result?.error === 'Insufficient balance'
+        ? l(`ຫຼຽນບໍ່ພໍ (ຍອດ: ${result.balance?.toLocaleString()}₭)`, `เหรียญไม่พอ (ยอด: ${result.balance?.toLocaleString()}₭)`, `Insufficient balance (current: ${result.balance?.toLocaleString()}₭)`)
+        : result?.error || 'Unknown error';
+      Swal.fire({ icon: 'error', title: l('ລົ້ມເຫລວ', 'ล้มเหลว', 'Failed'), text: errMsg });
+      return;
+    }
+    Swal.fire({
+      icon: 'success',
+      title: coinDialog.mode === 'add' ? l('ເຕີມສຳເລັດ ✅', 'เติมสำเร็จ ✅', 'Top-up successful ✅') : l('ຫັກສຳເລັດ ✅', 'หักสำเร็จ ✅', 'Deducted ✅'),
+      html: `<div class="text-2xl font-bold ${coinDialog.mode === 'add' ? 'text-green-600' : 'text-red-600'}">${coinDialog.mode === 'add' ? '+' : '-'}${amount.toLocaleString()}₭</div><div class="text-sm text-muted-foreground mt-2">${l('ຍອດໃໝ່', 'ยอดใหม่', 'New balance')}: ${result.new_balance?.toLocaleString()}₭</div>`,
+      timer: 2500,
+      showConfirmButton: false,
+    });
+    setCoinDialog(null); setCoinAmount(''); loadUsers(); loadTransactions();
   };
 
   if (!user) return <Navigate to="/admin-login" />;
