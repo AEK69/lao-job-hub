@@ -175,7 +175,7 @@ const AdminPage = () => {
     if (!amount || amount <= 0) { toast.error(l('ໃສ່ຈຳນວນ', 'กรอกจำนวน', 'Enter amount')); return; }
     const finalAmount = coinDialog.mode === 'add' ? amount : -amount;
     const { error } = await supabase.rpc('admin_topup_coins', {
-      _target_user_id: coinDialog.user.user_id, _amount: finalAmount,
+      _to_user_id: coinDialog.user.user_id, _amount: finalAmount,
       _description: `Admin ${coinDialog.mode === 'add' ? 'top-up' : 'deduction'}: ${amount.toLocaleString()}₭`,
     });
     if (error) toast.error(error.message);

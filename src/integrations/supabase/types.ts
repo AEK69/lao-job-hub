@@ -47,6 +47,42 @@ export type Database = {
         }
         Relationships: []
       }
+      coin_transactions: {
+        Row: {
+          admin_id: string | null
+          amount: number
+          created_at: string
+          description: string | null
+          from_user_id: string | null
+          id: string
+          to_user_id: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          admin_id?: string | null
+          amount: number
+          created_at?: string
+          description?: string | null
+          from_user_id?: string | null
+          id?: string
+          to_user_id: string
+          type?: string
+          user_id?: string | null
+        }
+        Update: {
+          admin_id?: string | null
+          amount?: number
+          created_at?: string
+          description?: string | null
+          from_user_id?: string | null
+          id?: string
+          to_user_id?: string
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       company_settings: {
         Row: {
           address: string | null
@@ -76,6 +112,44 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      conversations: {
+        Row: {
+          created_at: string
+          id: string
+          job_id: string | null
+          last_message_at: string
+          participant_1: string
+          participant_2: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          last_message_at?: string
+          participant_1: string
+          participant_2: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          last_message_at?: string
+          participant_1?: string
+          participant_2?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       job_images: {
         Row: {
@@ -114,79 +188,139 @@ export type Database = {
       }
       jobs: {
         Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          address: string | null
           amount_paid: number | null
           assigned_staff_id: string | null
           base_price: number | null
+          category: string | null
           created_at: string | null
           created_by: string | null
           customer_address: string | null
-          customer_name: string
-          customer_phone: string
+          customer_name: string | null
+          customer_phone: string | null
           deposit_amount: number | null
           description: string | null
           discount: number | null
+          district: string | null
           id: string
+          image_url: string | null
+          is_featured: boolean
+          is_urgent: boolean
           job_number: string
           job_status: string | null
-          job_type: string
+          job_type: string | null
+          lat: number | null
+          lng: number | null
           material_cost: number | null
           payment_method: string | null
           payment_status: string | null
+          phone: string | null
+          post_type: string | null
+          poster_name: string | null
           priority: string | null
+          salary: string | null
+          salary_type: string | null
           scheduled_date: string | null
           scheduled_time: string | null
+          status: string
+          title: string | null
           total_price: number | null
           updated_at: string | null
+          user_id: string | null
+          work_date: string | null
+          work_time: string | null
         }
         Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          address?: string | null
           amount_paid?: number | null
           assigned_staff_id?: string | null
           base_price?: number | null
+          category?: string | null
           created_at?: string | null
           created_by?: string | null
           customer_address?: string | null
-          customer_name: string
-          customer_phone: string
+          customer_name?: string | null
+          customer_phone?: string | null
           deposit_amount?: number | null
           description?: string | null
           discount?: number | null
+          district?: string | null
           id?: string
+          image_url?: string | null
+          is_featured?: boolean
+          is_urgent?: boolean
           job_number?: string
           job_status?: string | null
-          job_type: string
+          job_type?: string | null
+          lat?: number | null
+          lng?: number | null
           material_cost?: number | null
           payment_method?: string | null
           payment_status?: string | null
+          phone?: string | null
+          post_type?: string | null
+          poster_name?: string | null
           priority?: string | null
+          salary?: string | null
+          salary_type?: string | null
           scheduled_date?: string | null
           scheduled_time?: string | null
+          status?: string
+          title?: string | null
           total_price?: number | null
           updated_at?: string | null
+          user_id?: string | null
+          work_date?: string | null
+          work_time?: string | null
         }
         Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          address?: string | null
           amount_paid?: number | null
           assigned_staff_id?: string | null
           base_price?: number | null
+          category?: string | null
           created_at?: string | null
           created_by?: string | null
           customer_address?: string | null
-          customer_name?: string
-          customer_phone?: string
+          customer_name?: string | null
+          customer_phone?: string | null
           deposit_amount?: number | null
           description?: string | null
           discount?: number | null
+          district?: string | null
           id?: string
+          image_url?: string | null
+          is_featured?: boolean
+          is_urgent?: boolean
           job_number?: string
           job_status?: string | null
-          job_type?: string
+          job_type?: string | null
+          lat?: number | null
+          lng?: number | null
           material_cost?: number | null
           payment_method?: string | null
           payment_status?: string | null
+          phone?: string | null
+          post_type?: string | null
+          poster_name?: string | null
           priority?: string | null
+          salary?: string | null
+          salary_type?: string | null
           scheduled_date?: string | null
           scheduled_time?: string | null
+          status?: string
+          title?: string | null
           total_price?: number | null
           updated_at?: string | null
+          user_id?: string | null
+          work_date?: string | null
+          work_time?: string | null
         }
         Relationships: [
           {
@@ -198,32 +332,79 @@ export type Database = {
           },
         ]
       }
+      messages: {
+        Row: {
+          content: string | null
+          conversation_id: string
+          created_at: string
+          id: string
+          image_url: string | null
+          is_read: boolean
+          sender_id: string
+        }
+        Insert: {
+          content?: string | null
+          conversation_id: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          is_read?: boolean
+          sender_id: string
+        }
+        Update: {
+          content?: string | null
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          is_read?: boolean
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string | null
           created_at: string | null
           id: string
+          is_read: boolean
           job_id: string | null
           read: boolean | null
+          sender_id: string | null
           title: string
+          type: string
           user_id: string
         }
         Insert: {
           body?: string | null
           created_at?: string | null
           id?: string
+          is_read?: boolean
           job_id?: string | null
           read?: boolean | null
+          sender_id?: string | null
           title: string
+          type?: string
           user_id: string
         }
         Update: {
           body?: string | null
           created_at?: string | null
           id?: string
+          is_read?: boolean
           job_id?: string | null
           read?: boolean | null
+          sender_id?: string | null
           title?: string
+          type?: string
           user_id?: string
         }
         Relationships: []
@@ -262,6 +443,107 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "payments_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          address: string | null
+          avatar_url: string | null
+          bio: string | null
+          coin_balance: number
+          created_at: string
+          date_of_birth: string | null
+          display_name: string
+          district: string | null
+          full_name: string | null
+          guardian_name: string | null
+          guardian_phone: string | null
+          id: string
+          id_card_url: string | null
+          is_student: boolean
+          kyc_status: string
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          avatar_url?: string | null
+          bio?: string | null
+          coin_balance?: number
+          created_at?: string
+          date_of_birth?: string | null
+          display_name?: string
+          district?: string | null
+          full_name?: string | null
+          guardian_name?: string | null
+          guardian_phone?: string | null
+          id?: string
+          id_card_url?: string | null
+          is_student?: boolean
+          kyc_status?: string
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          avatar_url?: string | null
+          bio?: string | null
+          coin_balance?: number
+          created_at?: string
+          date_of_birth?: string | null
+          display_name?: string
+          district?: string | null
+          full_name?: string | null
+          guardian_name?: string | null
+          guardian_phone?: string | null
+          id?: string
+          id_card_url?: string | null
+          is_student?: boolean
+          kyc_status?: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      reviews: {
+        Row: {
+          comment: string | null
+          created_at: string
+          id: string
+          job_id: string | null
+          rating: number
+          reviewed_id: string
+          reviewer_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          rating: number
+          reviewed_id: string
+          reviewer_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          rating?: number
+          reviewed_id?: string
+          reviewer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_job_id_fkey"
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
@@ -349,7 +631,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      admin_topup_coins: {
+        Args: { _amount: number; _description: string; _to_user_id: string }
+        Returns: boolean
+      }
+      admin_update_kyc: {
+        Args: { _status: string; _target_user_id: string }
+        Returns: boolean
+      }
+      has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
+      spend_coins: {
+        Args: { _amount: number; _description: string; _type: string }
+        Returns: boolean
+      }
+      transfer_coins: {
+        Args: { _amount: number; _description: string; _to_user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
