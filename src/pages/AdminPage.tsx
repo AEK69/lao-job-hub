@@ -472,9 +472,56 @@ const AdminPage = () => {
 
             {/* Transactions Tab */}
             <TabsContent value="transactions" className="space-y-2">
-              {transactions.length === 0 ? (
+              <div className="flex gap-2 flex-wrap">
+                <Select value={txTypeFilter} onValueChange={setTxTypeFilter}>
+                  <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{l('ທຸກປະເພດ', 'ทุกประเภท', 'All types')}</SelectItem>
+                    <SelectItem value="admin_topup">📥 {l('ເຕີມໂດຍແອັດມິນ', 'แอดมินเติม', 'Admin top-up')}</SelectItem>
+                    <SelectItem value="admin_deduct">📤 {l('ຫັກໂດຍແອັດມິນ', 'แอดมินหัก', 'Admin deduct')}</SelectItem>
+                    <SelectItem value="job_payment">💼 {l('ຈ່າຍຄ່າງານ', 'จ่ายค่างาน', 'Job payment')}</SelectItem>
+                    <SelectItem value="transfer">🔄 {l('ໂອນ', 'โอน', 'Transfer')}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={txDateFilter} onValueChange={setTxDateFilter}>
+                  <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{l('ທຸກເວລາ', 'ทุกเวลา', 'All time')}</SelectItem>
+                    <SelectItem value="today">{l('ມື້ນີ້', 'วันนี้', 'Today')}</SelectItem>
+                    <SelectItem value="7d">{l('7 ມື້', '7 วัน', 'Last 7d')}</SelectItem>
+                    <SelectItem value="30d">{l('30 ມື້', '30 วัน', 'Last 30d')}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Badge variant="outline" className="ml-auto self-center">
+                  {(() => {
+                    const now = Date.now();
+                    const filtered = transactions.filter(tx => {
+                      if (txTypeFilter !== 'all' && tx.type !== txTypeFilter) return false;
+                      if (txDateFilter !== 'all') {
+                        const age = now - new Date(tx.created_at).getTime();
+                        const limit = txDateFilter === 'today' ? 86400000 : txDateFilter === '7d' ? 7 * 86400000 : 30 * 86400000;
+                        if (age > limit) return false;
+                      }
+                      return true;
+                    });
+                    return `${filtered.length} ${l('ລາຍການ', 'รายการ', 'items')}`;
+                  })()}
+                </Badge>
+              </div>
+              {(() => {
+                const now = Date.now();
+                const filteredTx = transactions.filter(tx => {
+                  if (txTypeFilter !== 'all' && tx.type !== txTypeFilter) return false;
+                  if (txDateFilter !== 'all') {
+                    const age = now - new Date(tx.created_at).getTime();
+                    const limit = txDateFilter === 'today' ? 86400000 : txDateFilter === '7d' ? 7 * 86400000 : 30 * 86400000;
+                    if (age > limit) return false;
+                  }
+                  return true;
+                });
+                return filteredTx.length === 0 ? (
                 <Card className="p-8 text-center text-muted-foreground">{l('ບໍ່ມີປະຫວັດ', 'ไม่มีประวัติ', 'No transactions')}</Card>
-              ) : transactions.map((tx, idx) => (
+              ) : <>{filteredTx.map((tx, idx) => (
                 <motion.div key={tx.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.02 }}>
                   <Card className="p-3">
                     <div className="flex items-center justify-between gap-3">
@@ -494,7 +541,8 @@ const AdminPage = () => {
                     </div>
                   </Card>
                 </motion.div>
-              ))}
+              ))}</>;
+              })()}
             </TabsContent>
           </Tabs>
         </div>
