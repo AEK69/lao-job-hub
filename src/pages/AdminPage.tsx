@@ -577,6 +577,45 @@ const AdminPage = () => {
               ))}</>;
               })()}
             </TabsContent>
+
+            {/* Reviews moderation */}
+            <TabsContent value="reviews" className="space-y-2">
+              {reviews.length === 0 ? (
+                <Card className="p-8 text-center text-muted-foreground">{l('ບໍ່ມີລີວິວ', 'ไม่มีรีวิว', 'No reviews')}</Card>
+              ) : reviews.map(r => (
+                <Card key={r.id} className="p-4">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <div className="flex">
+                          {[1,2,3,4,5].map(i => <Star key={i} className={`h-4 w-4 ${i <= r.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />)}
+                        </div>
+                        <Badge variant={r.status === 'approved' ? 'default' : r.status === 'hidden' ? 'destructive' : 'secondary'} className="text-[10px]">{r.status}</Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground mb-1">
+                        {getUserName(r.reviewer_id)} → {getUserName(r.reviewed_id)} • {new Date(r.created_at).toLocaleString()}
+                      </div>
+                      {r.comment && <p className="text-sm">{r.comment}</p>}
+                    </div>
+                    <div className="flex gap-1">
+                      {r.status !== 'approved' && (
+                        <Button size="sm" variant="outline" className="h-8 gap-1 text-green-600" onClick={() => handleSetReviewStatus(r.id, 'approved')}>
+                          <CheckCircle className="h-3 w-3" />
+                        </Button>
+                      )}
+                      {r.status !== 'hidden' && (
+                        <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => handleSetReviewStatus(r.id, 'hidden')}>
+                          <EyeOff className="h-3 w-3" />
+                        </Button>
+                      )}
+                      <Button size="sm" variant="destructive" className="h-8 gap-1" onClick={() => handleDeleteReview(r.id)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </TabsContent>
           </Tabs>
         </div>
       </main>
