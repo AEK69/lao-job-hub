@@ -85,7 +85,7 @@ const ProfilePage = () => {
   };
 
   const loadReviews = async () => {
-    const { data } = await supabase.from('reviews').select('*').eq('reviewed_id', user!.id).order('created_at', { ascending: false });
+    const { data } = await supabase.from('reviews').select('*').eq('reviewed_id', user!.id).eq('status', 'approved').order('created_at', { ascending: false });
     if (data && data.length > 0) {
       const avg = data.reduce((s, r) => s + r.rating, 0) / data.length;
       setAvgRating(Math.round(avg * 10) / 10);
