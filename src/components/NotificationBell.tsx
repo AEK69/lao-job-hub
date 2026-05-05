@@ -53,7 +53,20 @@ export function NotificationBell() {
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    // Cross-tab sync via BroadcastChannel
+    const bc = 'BroadcastChannel' in window ? new BroadcastChannel(`notif:${user.id}`) : null;
+    if (bc) {
+      bc.onmessage = (e) => {
+        if (e.data?.type === 'mark_read') {
+          const ids: string[] = e.data.ids || [];
+          setNotifications(prev => prev.map(n => ids.includes(n.id) || ids.length === 0 ? { ...n, is_read: true } : n));
+        } else if (e.data?.type === 'reload') {
+          loadNotifications();
+        }
+      };
+    }
+
+    return () => { supabase.removeChannel(channel); bc?.close(); };
   }, [user]);
 
   const loadNotifications = async () => {
@@ -75,6 +88,11 @@ export function NotificationBell() {
       .eq('user_id', user.id)
       .eq('is_read', false);
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    if ('BroadcastChannel' in window) {
+      const bc = new BroadcastChannel(`notif:${user.id}`);
+      bc.postMessage({ type: 'mark_read', ids: [] });
+      bc.close();
+    }
   };
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
