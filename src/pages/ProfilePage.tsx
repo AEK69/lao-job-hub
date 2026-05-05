@@ -12,7 +12,7 @@ import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Coins, User, Save, Briefcase, ArrowUpRight, ArrowDownLeft, Camera, Clock, ShieldCheck, ShieldAlert, XCircle, CheckCircle, Star } from 'lucide-react';
+import { Coins, User, Save, Briefcase, ArrowUpRight, ArrowDownLeft, Camera, Clock, ShieldCheck, ShieldAlert, XCircle, CheckCircle, Star, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Link, Navigate } from 'react-router-dom';
@@ -47,6 +47,8 @@ const ProfilePage = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [uploading, setUploading] = useState(false);
   const [avgRating, setAvgRating] = useState(0);
+  const [txTypeFilter, setTxTypeFilter] = useState<string>('all');
+  const [txDateFilter, setTxDateFilter] = useState<string>('all');
 
   const l = (lo: string, th: string, en: string) => language === 'en' ? en : language === 'th' ? th : lo;
 
@@ -74,7 +76,11 @@ const ProfilePage = () => {
   };
 
   const loadTransactions = async () => {
-    const { data } = await supabase.from('coin_transactions').select('*').eq('user_id', user!.id).order('created_at', { ascending: false });
+    const { data } = await supabase
+      .from('coin_transactions')
+      .select('*')
+      .or(`from_user_id.eq.${user!.id},to_user_id.eq.${user!.id}`)
+      .order('created_at', { ascending: false });
     setTransactions((data as CoinTransaction[]) || []);
   };
 
@@ -268,13 +274,65 @@ const ProfilePage = () => {
             </TabsContent>
 
             <TabsContent value="history">
-              <Card className="divide-y">
-                {transactions.length === 0 ? (
+              {(() => {
+                const now = Date.now();
+                const filtered = transactions.filter(tx => {
+                  if (txTypeFilter !== 'all' && tx.type !== txTypeFilter) return false;
+                  if (txDateFilter !== 'all') {
+                    const age = now - new Date(tx.created_at).getTime();
+                    const limit = txDateFilter === 'today' ? 86400000 : txDateFilter === '7d' ? 7 * 86400000 : 30 * 86400000;
+                    if (age > limit) return false;
+                  }
+                  return true;
+                });
+                const exportCSV = () => {
+                  const headers = ['Date', 'Type', 'Amount', 'Description'];
+                  const rows = filtered.map(t => [
+                    new Date(t.created_at).toISOString(),
+                    t.type,
+                    t.amount,
+                    `"${(t.description || '').replace(/"/g, '""')}"`,
+                  ]);
+                  const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+                  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+                  const a = document.createElement('a');
+                  a.href = URL.createObjectURL(blob);
+                  a.download = `coin-transactions-${new Date().toISOString().slice(0,10)}.csv`;
+                  a.click();
+                };
+                return (
+                  <div className="space-y-3">
+                    <div className="flex gap-2 flex-wrap">
+                      <Select value={txTypeFilter} onValueChange={setTxTypeFilter}>
+                        <SelectTrigger className="w-[160px] h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">{l('ທຸກປະເພດ', 'ทุกประเภท', 'All')}</SelectItem>
+                          <SelectItem value="admin_topup">📥 {l('ເຕີມ', 'เติม', 'Top-up')}</SelectItem>
+                          <SelectItem value="admin_deduct">📤 {l('ຫັກ', 'หัก', 'Deduct')}</SelectItem>
+                          <SelectItem value="job_payment">💼 {l('ຄ່າງານ', 'ค่างาน', 'Job pay')}</SelectItem>
+                          <SelectItem value="transfer">🔄 {l('ໂອນ', 'โอน', 'Transfer')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={txDateFilter} onValueChange={setTxDateFilter}>
+                        <SelectTrigger className="w-[140px] h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">{l('ທຸກເວລາ', 'ทุกเวลา', 'All time')}</SelectItem>
+                          <SelectItem value="today">{l('ມື້ນີ້', 'วันนี้', 'Today')}</SelectItem>
+                          <SelectItem value="7d">{l('7 ມື້', '7 วัน', '7d')}</SelectItem>
+                          <SelectItem value="30d">{l('30 ມື້', '30 วัน', '30d')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button size="sm" variant="outline" className="gap-1 h-9 ml-auto" onClick={exportCSV} disabled={filtered.length === 0}>
+                        <Download className="h-4 w-4" /> CSV
+                      </Button>
+                    </div>
+                    <Card className="divide-y">
+                      {filtered.length === 0 ? (
                   <div className="p-8 text-center text-muted-foreground">
                     <Coins className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
                     {l('ຍັງບໍ່ມີທຸລະກຳ', 'ยังไม่มีธุรกรรม', 'No transactions')}
                   </div>
-                ) : transactions.map(tx => (
+                ) : filtered.map(tx => (
                   <div key={tx.id} className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className={`p-2 rounded-full ${tx.amount > 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
@@ -288,11 +346,14 @@ const ProfilePage = () => {
                       </div>
                     </div>
                     <span className={`font-bold ${tx.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {tx.amount > 0 ? '+' : ''}{tx.amount} 🪙
+                      {tx.amount > 0 ? '+' : ''}{tx.amount.toLocaleString()}₭
                     </span>
                   </div>
                 ))}
-              </Card>
+                    </Card>
+                  </div>
+                );
+              })()}
             </TabsContent>
 
             <TabsContent value="reviews">
