@@ -156,6 +156,11 @@ export function NotificationBell() {
                   if (!n.is_read) {
                     await supabase.from('notifications').update({ is_read: true }).eq('id', n.id);
                     setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, is_read: true } : x));
+                    if ('BroadcastChannel' in window && user) {
+                      const bc = new BroadcastChannel(`notif:${user.id}`);
+                      bc.postMessage({ type: 'mark_read', ids: [n.id] });
+                      bc.close();
+                    }
                   }
                   if (n.job_id) setOpen(false);
                 }}
