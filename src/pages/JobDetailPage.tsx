@@ -46,7 +46,7 @@ const JobDetailPage = () => {
       setLoading(false);
 
       if (data) {
-        const { data: reviews } = await supabase.from('reviews').select('rating').eq('reviewed_id', data.user_id);
+        const { data: reviews } = await supabase.from('reviews').select('rating').eq('reviewed_id', data.user_id).eq('status', 'approved');
         if (reviews && reviews.length > 0) {
           const avg = reviews.reduce((s, r) => s + r.rating, 0) / reviews.length;
           setPosterRating({ avg: Math.round(avg * 10) / 10, count: reviews.length });
