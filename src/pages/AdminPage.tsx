@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Trash2, Briefcase, Users, Coins, Search, ShieldCheck, Eye, CheckCircle, XCircle,
   Minus, Plus, BarChart3, LogOut, Home, Settings, Bell,
-  UserCheck, Download, Lock, Unlock, Edit, History, UserX
+  UserCheck, Download, Lock, Unlock, Edit, History, UserX, Star, EyeOff
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -53,6 +53,17 @@ interface CoinTransaction {
   admin_id: string | null;
 }
 
+interface ReviewRow {
+  id: string;
+  reviewer_id: string;
+  reviewed_id: string;
+  job_id: string | null;
+  rating: number;
+  comment: string | null;
+  status: string;
+  created_at: string;
+}
+
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', '#10b981', '#f59e0b', '#ef4444', '#6366f1', '#ec4899', '#14b8a6'];
 
 const exportJobsToCSV = (jobs: Job[], filename = 'jobs-export.csv') => {
@@ -72,6 +83,7 @@ const AdminPage = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [transactions, setTransactions] = useState<CoinTransaction[]>([]);
+  const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [kycDialog, setKycDialog] = useState<UserProfile | null>(null);
   const [coinDialog, setCoinDialog] = useState<{ user: UserProfile; mode: 'add' | 'deduct' } | null>(null);
@@ -92,7 +104,7 @@ const AdminPage = () => {
   const checkAdmin = async () => {
     const { data } = await supabase.rpc('has_role', { _user_id: user!.id, _role: 'admin' });
     setIsAdmin(!!data);
-    if (data) { loadJobs(); loadUsers(); loadTransactions(); }
+    if (data) { loadJobs(); loadUsers(); loadTransactions(); loadReviews(); }
   };
 
   const loadJobs = async () => {
@@ -108,6 +120,26 @@ const AdminPage = () => {
   const loadTransactions = async () => {
     const { data } = await supabase.from('coin_transactions').select('*').order('created_at', { ascending: false }).limit(100);
     setTransactions((data as CoinTransaction[]) || []);
+  };
+
+  const loadReviews = async () => {
+    const { data } = await supabase.from('reviews').select('*').order('created_at', { ascending: false }).limit(100);
+    setReviews((data as ReviewRow[]) || []);
+  };
+
+  const handleSetReviewStatus = async (id: string, status: 'approved' | 'hidden') => {
+    const { error } = await supabase.from('reviews').update({ status } as any).eq('id', id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(l('ອັບເດດແລ້ວ', 'อัปเดตแล้ว', 'Updated'));
+    loadReviews();
+  };
+
+  const handleDeleteReview = async (id: string) => {
+    const r = await Swal.fire({ icon: 'warning', title: l('ລຶບລີວິວ?', 'ลบรีวิว?', 'Delete review?'), showCancelButton: true, confirmButtonColor: '#ef4444' });
+    if (!r.isConfirmed) return;
+    const { error } = await supabase.from('reviews').delete().eq('id', id);
+    if (error) toast.error(error.message);
+    else { toast.success(l('ລຶບແລ້ວ', 'ลบแล้ว', 'Deleted')); loadReviews(); }
   };
 
   const handleDeleteJob = async (id: string, title: string) => {
@@ -317,7 +349,7 @@ const AdminPage = () => {
 
           {/* Tabs */}
           <Tabs defaultValue={pendingKyc.length > 0 ? 'kyc' : 'users'} className="space-y-4">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="users" className="gap-2"><Users className="h-4 w-4" /> {l('ຜູ້ໃຊ້', 'ผู้ใช้', 'Users')} ({users.length})</TabsTrigger>
               <TabsTrigger value="kyc" className="gap-2 relative">
                 <ShieldCheck className="h-4 w-4" /> KYC
@@ -325,6 +357,7 @@ const AdminPage = () => {
               </TabsTrigger>
               <TabsTrigger value="jobs" className="gap-2"><Briefcase className="h-4 w-4" /> {l('ວຽກ', 'งาน', 'Jobs')} ({jobs.length})</TabsTrigger>
               <TabsTrigger value="transactions" className="gap-2"><History className="h-4 w-4" /> {l('ປະຫວັດ', 'ประวัติ', 'History')}</TabsTrigger>
+              <TabsTrigger value="reviews" className="gap-2"><Star className="h-4 w-4" /> {l('ລີວິວ', 'รีวิว', 'Reviews')} ({reviews.length})</TabsTrigger>
             </TabsList>
 
             {/* Users Tab */}
