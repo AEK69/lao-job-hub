@@ -673,6 +673,7 @@ const AdminPage = () => {
         </div>
       </main>
 
+      {/* Admins Tab content injected below via separate React subtree */}
       {/* KYC Dialog */}
       {kycDialog && (
         <Dialog open={!!kycDialog} onOpenChange={() => setKycDialog(null)}>
