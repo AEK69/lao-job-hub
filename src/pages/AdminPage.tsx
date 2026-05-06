@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Trash2, Briefcase, Users, Coins, Search, ShieldCheck, Eye, CheckCircle, XCircle,
   Minus, Plus, BarChart3, LogOut, Home, Settings, Bell,
-  UserCheck, Download, Lock, Unlock, Edit, History, UserX, Star, EyeOff
+  UserCheck, Download, Lock, Unlock, Edit, History, UserX, Star, EyeOff, ShieldPlus
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -84,6 +84,10 @@ const AdminPage = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [transactions, setTransactions] = useState<CoinTransaction[]>([]);
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
+  const [adminRoles, setAdminRoles] = useState<{ user_id: string; created_at: string | null }[]>([]);
+  const [addAdminDialog, setAddAdminDialog] = useState(false);
+  const [addAdminUserId, setAddAdminUserId] = useState('');
+  const [addAdminSearch, setAddAdminSearch] = useState('');
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [kycDialog, setKycDialog] = useState<UserProfile | null>(null);
   const [coinDialog, setCoinDialog] = useState<{ user: UserProfile; mode: 'add' | 'deduct' } | null>(null);
@@ -104,7 +108,7 @@ const AdminPage = () => {
   const checkAdmin = async () => {
     const { data } = await supabase.rpc('has_role', { _user_id: user!.id, _role: 'admin' });
     setIsAdmin(!!data);
-    if (data) { loadJobs(); loadUsers(); loadTransactions(); loadReviews(); }
+    if (data) { loadJobs(); loadUsers(); loadTransactions(); loadReviews(); loadAdmins(); }
   };
 
   const loadJobs = async () => {
@@ -125,6 +129,54 @@ const AdminPage = () => {
   const loadReviews = async () => {
     const { data } = await supabase.from('reviews').select('*').order('created_at', { ascending: false }).limit(100);
     setReviews((data as ReviewRow[]) || []);
+  };
+
+  const loadAdmins = async () => {
+    const { data } = await supabase.from('user_roles').select('user_id, created_at').eq('role', 'admin');
+    setAdminRoles((data as any) || []);
+  };
+
+  const handleAddAdmin = async () => {
+    if (!addAdminUserId) return;
+    const { error } = await supabase.from('user_roles').insert({ user_id: addAdminUserId, role: 'admin' });
+    if (error) {
+      const msg = error.code === '23505'
+        ? l('ຜູ້ໃຊ້ນີ້ເປັນ Admin ແລ້ວ', 'ผู้ใช้นี้เป็น Admin อยู่แล้ว', 'Already an admin')
+        : error.message;
+      Swal.fire({ icon: 'error', title: l('ລົ້ມເຫລວ', 'ล้มเหลว', 'Failed'), text: msg });
+      return;
+    }
+    await supabase.from('notifications').insert({
+      user_id: addAdminUserId,
+      type: 'admin_granted',
+      title: l('ທ່ານໄດ້ຮັບສິດ Admin 🛡️', 'คุณได้รับสิทธิ์ Admin 🛡️', 'You are now an Admin 🛡️'),
+      body: l('ເຂົ້າ /admin ເພື່ອຈັດການລະບົບ', 'เข้า /admin เพื่อจัดการระบบ', 'Visit /admin to manage the system'),
+    } as any);
+    Swal.fire({ icon: 'success', title: l('ເພີ່ມ Admin ສຳເລັດ', 'เพิ่ม Admin สำเร็จ', 'Admin added'), timer: 1500, showConfirmButton: false });
+    setAddAdminDialog(false); setAddAdminUserId(''); setAddAdminSearch('');
+    loadAdmins();
+  };
+
+  const handleRemoveAdmin = async (targetUserId: string) => {
+    if (targetUserId === user!.id) {
+      Swal.fire({ icon: 'warning', title: l('ຖອດສິດຕົນເອງບໍ່ໄດ້', 'ถอดสิทธิ์ตัวเองไม่ได้', 'Cannot revoke your own role') });
+      return;
+    }
+    const r = await Swal.fire({
+      icon: 'warning',
+      title: l('ຖອດສິດ Admin?', 'ถอดสิทธิ์ Admin?', 'Revoke admin?'),
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      confirmButtonText: l('ຖອດສິດ', 'ถอดสิทธิ์', 'Revoke'),
+    });
+    if (!r.isConfirmed) return;
+    const { error } = await supabase.from('user_roles').delete().eq('user_id', targetUserId).eq('role', 'admin');
+    if (error) {
+      Swal.fire({ icon: 'error', title: l('ລົ້ມເຫລວ', 'ล้มเหลว', 'Failed'), text: error.message });
+      return;
+    }
+    toast.success(l('ຖອດສິດແລ້ວ', 'ถอดสิทธิ์แล้ว', 'Revoked'));
+    loadAdmins();
   };
 
   const handleSetReviewStatus = async (id: string, status: 'approved' | 'hidden') => {
