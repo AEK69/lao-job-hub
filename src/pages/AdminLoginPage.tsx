@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -123,14 +123,13 @@ const AdminGate = () => {
   const l = (lo: string, th: string, en: string) =>
     language === 'en' ? en : language === 'th' ? th : lo;
 
-  useState(() => {
+  useEffect(() => {
     (async () => {
       const { data } = await supabase.rpc('has_role', { _user_id: user!.id, _role: 'admin' });
       setIsAdmin(!!data);
       setChecking(false);
     })();
-    return undefined;
-  });
+  }, [user]);
 
   if (checking) {
     return <div className="min-h-screen flex items-center justify-center"><span className="animate-pulse text-2xl">⏳</span></div>;
