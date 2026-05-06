@@ -771,6 +771,68 @@ const AdminPage = () => {
         </Dialog>
       )}
 
+      {/* Add Admin Dialog */}
+      {addAdminDialog && (
+        <Dialog open={addAdminDialog} onOpenChange={setAddAdminDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ShieldPlus className="h-5 w-5" /> {l('ເພີ່ມ Admin', 'เพิ่ม Admin', 'Add Admin')}
+              </DialogTitle>
+              <DialogDescription>
+                {l('ເລືອກຜູ້ໃຊ້ທີ່ຈະໃຫ້ສິດ', 'เลือกผู้ใช้ที่จะให้สิทธิ์', 'Pick a user to grant admin access')}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={l('ຄົ້ນຫາຊື່ ຫຼື ເບີໂທ...', 'ค้นหาชื่อหรือเบอร์โทร...', 'Search name or phone...')}
+                  value={addAdminSearch}
+                  onChange={e => setAddAdminSearch(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <div className="max-h-72 overflow-y-auto space-y-1 border rounded p-2">
+                {users
+                  .filter(u => !adminRoles.some(r => r.user_id === u.user_id))
+                  .filter(u => {
+                    if (!addAdminSearch) return true;
+                    const s = addAdminSearch.toLowerCase();
+                    return (u.display_name || '').toLowerCase().includes(s) || (u.phone || '').includes(s);
+                  })
+                  .slice(0, 50)
+                  .map(u => (
+                    <button
+                      key={u.user_id}
+                      type="button"
+                      onClick={() => setAddAdminUserId(u.user_id)}
+                      className={`w-full text-left p-2 rounded flex items-center gap-2 hover:bg-muted transition-colors ${addAdminUserId === u.user_id ? 'bg-primary/10 ring-1 ring-primary' : ''}`}
+                    >
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={u.avatar_url || ''} />
+                        <AvatarFallback>{(u.display_name || '?')[0].toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium truncate">{u.display_name || '—'}</div>
+                        <div className="text-xs text-muted-foreground truncate">{u.phone || '—'}</div>
+                      </div>
+                    </button>
+                  ))}
+              </div>
+            </div>
+            <DialogFooter className="flex gap-2">
+              <Button variant="outline" onClick={() => { setAddAdminDialog(false); setAddAdminUserId(''); }}>
+                {l('ຍົກເລີກ', 'ยกเลิก', 'Cancel')}
+              </Button>
+              <Button onClick={handleAddAdmin} disabled={!addAdminUserId} className="gap-2">
+                <ShieldPlus className="h-4 w-4" /> {l('ໃຫ້ສິດ Admin', 'ให้สิทธิ์ Admin', 'Grant Admin')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
       {/* Coin Dialog */}
       {coinDialog && (
         <Dialog open={!!coinDialog} onOpenChange={() => setCoinDialog(null)}>
