@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Trash2, Briefcase, Users, Coins, Search, ShieldCheck, Eye, CheckCircle, XCircle,
   Minus, Plus, BarChart3, LogOut, Home, Settings, Bell,
-  UserCheck, Download, Lock, Unlock, Edit, History, UserX, Star, EyeOff
+  UserCheck, Download, Lock, Unlock, Edit, History, UserX, Star, EyeOff, ShieldPlus
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -84,6 +84,10 @@ const AdminPage = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [transactions, setTransactions] = useState<CoinTransaction[]>([]);
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
+  const [adminRoles, setAdminRoles] = useState<{ user_id: string; created_at: string | null }[]>([]);
+  const [addAdminDialog, setAddAdminDialog] = useState(false);
+  const [addAdminUserId, setAddAdminUserId] = useState('');
+  const [addAdminSearch, setAddAdminSearch] = useState('');
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [kycDialog, setKycDialog] = useState<UserProfile | null>(null);
   const [coinDialog, setCoinDialog] = useState<{ user: UserProfile; mode: 'add' | 'deduct' } | null>(null);
@@ -104,7 +108,7 @@ const AdminPage = () => {
   const checkAdmin = async () => {
     const { data } = await supabase.rpc('has_role', { _user_id: user!.id, _role: 'admin' });
     setIsAdmin(!!data);
-    if (data) { loadJobs(); loadUsers(); loadTransactions(); loadReviews(); }
+    if (data) { loadJobs(); loadUsers(); loadTransactions(); loadReviews(); loadAdmins(); }
   };
 
   const loadJobs = async () => {
@@ -125,6 +129,54 @@ const AdminPage = () => {
   const loadReviews = async () => {
     const { data } = await supabase.from('reviews').select('*').order('created_at', { ascending: false }).limit(100);
     setReviews((data as ReviewRow[]) || []);
+  };
+
+  const loadAdmins = async () => {
+    const { data } = await supabase.from('user_roles').select('user_id, created_at').eq('role', 'admin');
+    setAdminRoles((data as any) || []);
+  };
+
+  const handleAddAdmin = async () => {
+    if (!addAdminUserId) return;
+    const { error } = await supabase.from('user_roles').insert({ user_id: addAdminUserId, role: 'admin' });
+    if (error) {
+      const msg = error.code === '23505'
+        ? l('ຜູ້ໃຊ້ນີ້ເປັນ Admin ແລ້ວ', 'ผู้ใช้นี้เป็น Admin อยู่แล้ว', 'Already an admin')
+        : error.message;
+      Swal.fire({ icon: 'error', title: l('ລົ້ມເຫລວ', 'ล้มเหลว', 'Failed'), text: msg });
+      return;
+    }
+    await supabase.from('notifications').insert({
+      user_id: addAdminUserId,
+      type: 'admin_granted',
+      title: l('ທ່ານໄດ້ຮັບສິດ Admin 🛡️', 'คุณได้รับสิทธิ์ Admin 🛡️', 'You are now an Admin 🛡️'),
+      body: l('ເຂົ້າ /admin ເພື່ອຈັດການລະບົບ', 'เข้า /admin เพื่อจัดการระบบ', 'Visit /admin to manage the system'),
+    } as any);
+    Swal.fire({ icon: 'success', title: l('ເພີ່ມ Admin ສຳເລັດ', 'เพิ่ม Admin สำเร็จ', 'Admin added'), timer: 1500, showConfirmButton: false });
+    setAddAdminDialog(false); setAddAdminUserId(''); setAddAdminSearch('');
+    loadAdmins();
+  };
+
+  const handleRemoveAdmin = async (targetUserId: string) => {
+    if (targetUserId === user!.id) {
+      Swal.fire({ icon: 'warning', title: l('ຖອດສິດຕົນເອງບໍ່ໄດ້', 'ถอดสิทธิ์ตัวเองไม่ได้', 'Cannot revoke your own role') });
+      return;
+    }
+    const r = await Swal.fire({
+      icon: 'warning',
+      title: l('ຖອດສິດ Admin?', 'ถอดสิทธิ์ Admin?', 'Revoke admin?'),
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      confirmButtonText: l('ຖອດສິດ', 'ถอดสิทธิ์', 'Revoke'),
+    });
+    if (!r.isConfirmed) return;
+    const { error } = await supabase.from('user_roles').delete().eq('user_id', targetUserId).eq('role', 'admin');
+    if (error) {
+      Swal.fire({ icon: 'error', title: l('ລົ້ມເຫລວ', 'ล้มเหลว', 'Failed'), text: error.message });
+      return;
+    }
+    toast.success(l('ຖອດສິດແລ້ວ', 'ถอดสิทธิ์แล้ว', 'Revoked'));
+    loadAdmins();
   };
 
   const handleSetReviewStatus = async (id: string, status: 'approved' | 'hidden') => {
@@ -349,7 +401,7 @@ const AdminPage = () => {
 
           {/* Tabs */}
           <Tabs defaultValue={pendingKyc.length > 0 ? 'kyc' : 'users'} className="space-y-4">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="users" className="gap-2"><Users className="h-4 w-4" /> {l('ຜູ້ໃຊ້', 'ผู้ใช้', 'Users')} ({users.length})</TabsTrigger>
               <TabsTrigger value="kyc" className="gap-2 relative">
                 <ShieldCheck className="h-4 w-4" /> KYC
@@ -358,6 +410,7 @@ const AdminPage = () => {
               <TabsTrigger value="jobs" className="gap-2"><Briefcase className="h-4 w-4" /> {l('ວຽກ', 'งาน', 'Jobs')} ({jobs.length})</TabsTrigger>
               <TabsTrigger value="transactions" className="gap-2"><History className="h-4 w-4" /> {l('ປະຫວັດ', 'ประวัติ', 'History')}</TabsTrigger>
               <TabsTrigger value="reviews" className="gap-2"><Star className="h-4 w-4" /> {l('ລີວິວ', 'รีวิว', 'Reviews')} ({reviews.length})</TabsTrigger>
+              <TabsTrigger value="admins" className="gap-2"><ShieldPlus className="h-4 w-4" /> Admins ({adminRoles.length})</TabsTrigger>
             </TabsList>
 
             {/* Users Tab */}
@@ -616,10 +669,60 @@ const AdminPage = () => {
                 </Card>
               ))}
             </TabsContent>
+
+            {/* Admins Tab */}
+            <TabsContent value="admins" className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  {l('ບັນຊີທີ່ມີສິດ Admin', 'บัญชีที่มีสิทธิ์ Admin', 'Accounts with admin role')}
+                </p>
+                <Button size="sm" onClick={() => setAddAdminDialog(true)} className="gap-2">
+                  <ShieldPlus className="h-4 w-4" /> {l('ເພີ່ມ Admin', 'เพิ่ม Admin', 'Add Admin')}
+                </Button>
+              </div>
+              {adminRoles.length === 0 ? (
+                <Card className="p-8 text-center text-muted-foreground">{l('ບໍ່ມີ Admin', 'ไม่มี Admin', 'No admins')}</Card>
+              ) : adminRoles.map(role => {
+                const u = users.find(x => x.user_id === role.user_id);
+                const isMe = role.user_id === user!.id;
+                return (
+                  <Card key={role.user_id} className="p-4">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={u?.avatar_url || ''} />
+                          <AvatarFallback className="bg-primary/10 text-primary">
+                            {(u?.display_name || '?')[0].toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <div className="font-semibold text-sm flex items-center gap-2">
+                            {u?.display_name || role.user_id.slice(0, 8)}
+                            {isMe && <Badge variant="secondary" className="text-[10px]">{l('ທ່ານ', 'คุณ', 'You')}</Badge>}
+                          </div>
+                          <div className="text-xs text-muted-foreground">{u?.phone || '—'}</div>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="h-8 gap-1"
+                        disabled={isMe || adminRoles.length <= 1}
+                        onClick={() => handleRemoveAdmin(role.user_id)}
+                      >
+                        <UserX className="h-3 w-3" />
+                        {l('ຖອດສິດ', 'ถอดสิทธิ์', 'Revoke')}
+                      </Button>
+                    </div>
+                  </Card>
+                );
+              })}
+            </TabsContent>
           </Tabs>
         </div>
       </main>
 
+      {/* Admins Tab content injected below via separate React subtree */}
       {/* KYC Dialog */}
       {kycDialog && (
         <Dialog open={!!kycDialog} onOpenChange={() => setKycDialog(null)}>
@@ -663,6 +766,68 @@ const AdminPage = () => {
               <Button variant="outline" onClick={() => setKycDialog(null)}>{l('ປິດ', 'ปิด', 'Close')}</Button>
               <Button className="bg-green-600 hover:bg-green-700 gap-1" onClick={() => handleKycAction(kycDialog.user_id, 'approved')}><CheckCircle className="h-4 w-4" /> {l('ຢືນຢັນ', 'ยืนยัน', 'Approve')}</Button>
               <Button variant="destructive" onClick={() => handleKycAction(kycDialog.user_id, 'rejected')} className="gap-1"><XCircle className="h-4 w-4" /> {l('ປະຕິເສດ', 'ปฏิเสธ', 'Reject')}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Add Admin Dialog */}
+      {addAdminDialog && (
+        <Dialog open={addAdminDialog} onOpenChange={setAddAdminDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ShieldPlus className="h-5 w-5" /> {l('ເພີ່ມ Admin', 'เพิ่ม Admin', 'Add Admin')}
+              </DialogTitle>
+              <DialogDescription>
+                {l('ເລືອກຜູ້ໃຊ້ທີ່ຈະໃຫ້ສິດ', 'เลือกผู้ใช้ที่จะให้สิทธิ์', 'Pick a user to grant admin access')}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={l('ຄົ້ນຫາຊື່ ຫຼື ເບີໂທ...', 'ค้นหาชื่อหรือเบอร์โทร...', 'Search name or phone...')}
+                  value={addAdminSearch}
+                  onChange={e => setAddAdminSearch(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <div className="max-h-72 overflow-y-auto space-y-1 border rounded p-2">
+                {users
+                  .filter(u => !adminRoles.some(r => r.user_id === u.user_id))
+                  .filter(u => {
+                    if (!addAdminSearch) return true;
+                    const s = addAdminSearch.toLowerCase();
+                    return (u.display_name || '').toLowerCase().includes(s) || (u.phone || '').includes(s);
+                  })
+                  .slice(0, 50)
+                  .map(u => (
+                    <button
+                      key={u.user_id}
+                      type="button"
+                      onClick={() => setAddAdminUserId(u.user_id)}
+                      className={`w-full text-left p-2 rounded flex items-center gap-2 hover:bg-muted transition-colors ${addAdminUserId === u.user_id ? 'bg-primary/10 ring-1 ring-primary' : ''}`}
+                    >
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={u.avatar_url || ''} />
+                        <AvatarFallback>{(u.display_name || '?')[0].toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium truncate">{u.display_name || '—'}</div>
+                        <div className="text-xs text-muted-foreground truncate">{u.phone || '—'}</div>
+                      </div>
+                    </button>
+                  ))}
+              </div>
+            </div>
+            <DialogFooter className="flex gap-2">
+              <Button variant="outline" onClick={() => { setAddAdminDialog(false); setAddAdminUserId(''); }}>
+                {l('ຍົກເລີກ', 'ยกเลิก', 'Cancel')}
+              </Button>
+              <Button onClick={handleAddAdmin} disabled={!addAdminUserId} className="gap-2">
+                <ShieldPlus className="h-4 w-4" /> {l('ໃຫ້ສິດ Admin', 'ให้สิทธิ์ Admin', 'Grant Admin')}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
