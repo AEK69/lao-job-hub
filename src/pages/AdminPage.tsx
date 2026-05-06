@@ -669,6 +669,55 @@ const AdminPage = () => {
                 </Card>
               ))}
             </TabsContent>
+
+            {/* Admins Tab */}
+            <TabsContent value="admins" className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  {l('ບັນຊີທີ່ມີສິດ Admin', 'บัญชีที่มีสิทธิ์ Admin', 'Accounts with admin role')}
+                </p>
+                <Button size="sm" onClick={() => setAddAdminDialog(true)} className="gap-2">
+                  <ShieldPlus className="h-4 w-4" /> {l('ເພີ່ມ Admin', 'เพิ่ม Admin', 'Add Admin')}
+                </Button>
+              </div>
+              {adminRoles.length === 0 ? (
+                <Card className="p-8 text-center text-muted-foreground">{l('ບໍ່ມີ Admin', 'ไม่มี Admin', 'No admins')}</Card>
+              ) : adminRoles.map(role => {
+                const u = users.find(x => x.user_id === role.user_id);
+                const isMe = role.user_id === user!.id;
+                return (
+                  <Card key={role.user_id} className="p-4">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={u?.avatar_url || ''} />
+                          <AvatarFallback className="bg-primary/10 text-primary">
+                            {(u?.display_name || '?')[0].toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <div className="font-semibold text-sm flex items-center gap-2">
+                            {u?.display_name || role.user_id.slice(0, 8)}
+                            {isMe && <Badge variant="secondary" className="text-[10px]">{l('ທ່ານ', 'คุณ', 'You')}</Badge>}
+                          </div>
+                          <div className="text-xs text-muted-foreground">{u?.phone || '—'}</div>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="h-8 gap-1"
+                        disabled={isMe || adminRoles.length <= 1}
+                        onClick={() => handleRemoveAdmin(role.user_id)}
+                      >
+                        <UserX className="h-3 w-3" />
+                        {l('ຖອດສິດ', 'ถอดสิทธิ์', 'Revoke')}
+                      </Button>
+                    </div>
+                  </Card>
+                );
+              })}
+            </TabsContent>
           </Tabs>
         </div>
       </main>
