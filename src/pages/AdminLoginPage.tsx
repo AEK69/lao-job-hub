@@ -3,8 +3,6 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppStore } from '@/lib/store';
-import { Header } from '@/components/Header';
-import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -63,8 +61,7 @@ const AdminLoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
+    <div className="min-h-screen flex flex-col bg-muted/30">
       <div className="flex-1 flex items-center justify-center px-4 py-12">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <Card className="w-full max-w-md p-8">
@@ -108,7 +105,6 @@ const AdminLoginPage = () => {
           </Card>
         </motion.div>
       </div>
-      <Footer />
     </div>
   );
 };
@@ -136,8 +132,7 @@ const AdminGate = () => {
   }
   if (isAdmin) return <Navigate to="/admin" replace />;
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
+    <div className="min-h-screen flex flex-col bg-muted/30">
       <div className="flex-1 flex items-center justify-center px-4">
         <Card className="w-full max-w-md p-8 text-center">
           <Shield className="w-12 h-12 text-primary mx-auto mb-4" />
@@ -152,7 +147,6 @@ const AdminGate = () => {
           </Button>
         </Card>
       </div>
-      <Footer />
     </div>
   );
 };
