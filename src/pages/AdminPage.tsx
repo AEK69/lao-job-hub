@@ -356,7 +356,9 @@ const AdminPage = () => {
           </div>
           <div className="flex items-center gap-3">
             {pendingKyc.length > 0 && <Badge className="bg-orange-500 gap-1 animate-pulse"><Bell className="h-3 w-3" /> {pendingKyc.length} KYC</Badge>}
-            <Link to="/" className="lg:hidden"><Button variant="outline" size="sm"><Home className="h-4 w-4" /></Button></Link>
+            <Button variant="outline" size="sm" onClick={signOut} className="gap-1">
+              <LogOut className="h-4 w-4" /> {l('ອອກ', 'ออก', 'Sign out')}
+            </Button>
           </div>
         </header>
 
