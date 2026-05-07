@@ -405,7 +405,7 @@ const AdminPage = () => {
 
           {/* Tabs */}
           <Tabs defaultValue={pendingKyc.length > 0 ? 'kyc' : 'users'} className="space-y-4">
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-7">
               <TabsTrigger value="users" className="gap-2"><Users className="h-4 w-4" /> {l('ຜູ້ໃຊ້', 'ผู้ใช้', 'Users')} ({users.length})</TabsTrigger>
               <TabsTrigger value="kyc" className="gap-2 relative">
                 <ShieldCheck className="h-4 w-4" /> KYC
@@ -414,7 +414,8 @@ const AdminPage = () => {
               <TabsTrigger value="jobs" className="gap-2"><Briefcase className="h-4 w-4" /> {l('ວຽກ', 'งาน', 'Jobs')} ({jobs.length})</TabsTrigger>
               <TabsTrigger value="transactions" className="gap-2"><History className="h-4 w-4" /> {l('ປະຫວັດ', 'ประวัติ', 'History')}</TabsTrigger>
               <TabsTrigger value="reviews" className="gap-2"><Star className="h-4 w-4" /> {l('ລີວິວ', 'รีวิว', 'Reviews')} ({reviews.length})</TabsTrigger>
-              <TabsTrigger value="admins" className="gap-2"><ShieldPlus className="h-4 w-4" /> Admins ({adminRoles.length})</TabsTrigger>
+              <TabsTrigger value="admins" className="gap-2"><ShieldPlus className="h-4 w-4" /> Admin</TabsTrigger>
+              <TabsTrigger value="audit" className="gap-2"><FileText className="h-4 w-4" /> {l('ບັນທຶກ', 'บันทึก', 'Audit')}</TabsTrigger>
             </TabsList>
 
             {/* Users Tab */}
