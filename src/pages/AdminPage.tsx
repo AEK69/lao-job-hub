@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Trash2, Briefcase, Users, Coins, Search, ShieldCheck, Eye, CheckCircle, XCircle,
   Minus, Plus, BarChart3, LogOut, Home, Settings, Bell,
-  UserCheck, Download, Lock, Unlock, Edit, History, UserX, Star, EyeOff, ShieldPlus
+  UserCheck, Download, Lock, Unlock, Edit, History, UserX, Star, EyeOff, ShieldPlus, FileText
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -64,6 +64,17 @@ interface ReviewRow {
   created_at: string;
 }
 
+interface AuditLogRow {
+  id: string;
+  action: string;
+  target_table: string | null;
+  target_id: string | null;
+  old_value: any;
+  new_value: any;
+  user_id: string | null;
+  created_at: string | null;
+}
+
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', '#10b981', '#f59e0b', '#ef4444', '#6366f1', '#ec4899', '#14b8a6'];
 
 const exportJobsToCSV = (jobs: Job[], filename = 'jobs-export.csv') => {
@@ -88,6 +99,8 @@ const AdminPage = () => {
   const [addAdminDialog, setAddAdminDialog] = useState(false);
   const [addAdminUserId, setAddAdminUserId] = useState('');
   const [addAdminSearch, setAddAdminSearch] = useState('');
+  const [auditLogs, setAuditLogs] = useState<AuditLogRow[]>([]);
+  const [auditTableFilter, setAuditTableFilter] = useState<string>('all');
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [kycDialog, setKycDialog] = useState<UserProfile | null>(null);
   const [coinDialog, setCoinDialog] = useState<{ user: UserProfile; mode: 'add' | 'deduct' } | null>(null);
@@ -108,7 +121,7 @@ const AdminPage = () => {
   const checkAdmin = async () => {
     const { data } = await supabase.rpc('has_role', { _user_id: user!.id, _role: 'admin' });
     setIsAdmin(!!data);
-    if (data) { loadJobs(); loadUsers(); loadTransactions(); loadReviews(); loadAdmins(); }
+    if (data) { loadJobs(); loadUsers(); loadTransactions(); loadReviews(); loadAdmins(); loadAuditLogs(); }
   };
 
   const loadJobs = async () => {
@@ -136,47 +149,45 @@ const AdminPage = () => {
     setAdminRoles((data as any) || []);
   };
 
-  const handleAddAdmin = async () => {
-    if (!addAdminUserId) return;
-    const { error } = await supabase.from('user_roles').insert({ user_id: addAdminUserId, role: 'admin' });
-    if (error) {
-      const msg = error.code === '23505'
-        ? l('ຜູ້ໃຊ້ນີ້ເປັນ Admin ແລ້ວ', 'ผู้ใช้นี้เป็น Admin อยู่แล้ว', 'Already an admin')
-        : error.message;
-      Swal.fire({ icon: 'error', title: l('ລົ້ມເຫລວ', 'ล้มเหลว', 'Failed'), text: msg });
-      return;
-    }
-    await supabase.from('notifications').insert({
-      user_id: addAdminUserId,
-      type: 'admin_granted',
-      title: l('ທ່ານໄດ້ຮັບສິດ Admin 🛡️', 'คุณได้รับสิทธิ์ Admin 🛡️', 'You are now an Admin 🛡️'),
-      body: l('ເຂົ້າ /admin ເພື່ອຈັດການລະບົບ', 'เข้า /admin เพื่อจัดการระบบ', 'Visit /admin to manage the system'),
-    } as any);
-    Swal.fire({ icon: 'success', title: l('ເພີ່ມ Admin ສຳເລັດ', 'เพิ่ม Admin สำเร็จ', 'Admin added'), timer: 1500, showConfirmButton: false });
-    setAddAdminDialog(false); setAddAdminUserId(''); setAddAdminSearch('');
-    loadAdmins();
+  const loadAuditLogs = async () => {
+    const { data } = await supabase
+      .from('audit_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(200);
+    setAuditLogs((data as AuditLogRow[]) || []);
   };
 
-  const handleRemoveAdmin = async (targetUserId: string) => {
-    if (targetUserId === user!.id) {
-      Swal.fire({ icon: 'warning', title: l('ຖອດສິດຕົນເອງບໍ່ໄດ້', 'ถอดสิทธิ์ตัวเองไม่ได้', 'Cannot revoke your own role') });
-      return;
-    }
-    const r = await Swal.fire({
+  // Single-admin model: instead of adding, we TRANSFER the admin role to another user.
+  const handleTransferAdmin = async () => {
+    if (!addAdminUserId) return;
+    const confirm = await Swal.fire({
       icon: 'warning',
-      title: l('ຖອດສິດ Admin?', 'ถอดสิทธิ์ Admin?', 'Revoke admin?'),
+      title: l('ໂອນສິດ Admin?', 'โอนสิทธิ์ Admin?', 'Transfer admin?'),
+      text: l('ຫຼັງຈາກໂອນ ທ່ານຈະບໍ່ແມ່ນ Admin ອີກຕໍ່ໄປ', 'หลังโอนคุณจะไม่ใช่ Admin อีกต่อไป', 'After transfer you will no longer be admin'),
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
-      confirmButtonText: l('ຖອດສິດ', 'ถอดสิทธิ์', 'Revoke'),
+      confirmButtonText: l('ໂອນສິດ', 'โอน', 'Transfer'),
     });
-    if (!r.isConfirmed) return;
-    const { error } = await supabase.from('user_roles').delete().eq('user_id', targetUserId).eq('role', 'admin');
+    if (!confirm.isConfirmed) return;
+    const { data, error } = await supabase.rpc('transfer_admin' as any, { _to_user_id: addAdminUserId } as any);
     if (error) {
       Swal.fire({ icon: 'error', title: l('ລົ້ມເຫລວ', 'ล้มเหลว', 'Failed'), text: error.message });
       return;
     }
-    toast.success(l('ຖອດສິດແລ້ວ', 'ถอดสิทธิ์แล้ว', 'Revoked'));
-    loadAdmins();
+    const result = data as any;
+    if (!result?.success) {
+      Swal.fire({ icon: 'error', title: l('ລົ້ມເຫລວ', 'ล้มเหลว', 'Failed'), text: result?.error || 'Unknown' });
+      return;
+    }
+    Swal.fire({
+      icon: 'success',
+      title: l('ໂອນສິດສຳເລັດ', 'โอนสำเร็จ', 'Transferred'),
+      text: l('ກຳລັງອອກຈາກລະບົບ...', 'กำลังออกจากระบบ...', 'Signing out...'),
+      timer: 1800, showConfirmButton: false,
+    });
+    setAddAdminDialog(false); setAddAdminUserId(''); setAddAdminSearch('');
+    setTimeout(async () => { await signOut(); window.location.href = '/admin-login'; }, 1800);
   };
 
   const handleSetReviewStatus = async (id: string, status: 'approved' | 'hidden') => {
