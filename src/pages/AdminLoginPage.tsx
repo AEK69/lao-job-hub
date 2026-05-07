@@ -97,11 +97,11 @@ const AdminLoginPage = () => {
               </Button>
             </form>
 
-            <div className="mt-6 pt-6 border-t">
-              <Button variant="ghost" className="w-full text-sm" onClick={() => navigate('/')}>
-                {l('ກັບໄປໜ້າຫຼັກ', 'กลับไปหน้าแรก', 'Back to Home')}
-              </Button>
-            </div>
+            <p className="mt-6 pt-6 border-t text-center text-xs text-muted-foreground">
+              {l('ສະເພາະ Admin ເທົ່ານັ້ນ — ບໍ່ມີທາງເຂົ້າສຳລັບຜູ້ໃຊ້ທົ່ວໄປ',
+                 'เฉพาะ Admin เท่านั้น — ไม่มีทางเข้าสำหรับผู้ใช้ทั่วไป',
+                 'Admin only — no access for regular users')}
+            </p>
           </Card>
         </motion.div>
       </div>
