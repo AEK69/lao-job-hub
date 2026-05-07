@@ -679,10 +679,10 @@ const AdminPage = () => {
             <TabsContent value="admins" className="space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
-                  {l('ບັນຊີທີ່ມີສິດ Admin', 'บัญชีที่มีสิทธิ์ Admin', 'Accounts with admin role')}
+                  {l('ມີ Admin ໄດ້ສູງສຸດ 1 ຄົນ — ໃຊ້ປຸ່ມ "ໂອນສິດ" ເພື່ອປ່ຽນເຈົ້າຂອງ', 'มี Admin ได้สูงสุด 1 คน — ใช้ปุ่ม "โอนสิทธิ์" เพื่อเปลี่ยนเจ้าของ', 'Only one admin allowed — use Transfer to hand over the role')}
                 </p>
                 <Button size="sm" onClick={() => setAddAdminDialog(true)} className="gap-2">
-                  <ShieldPlus className="h-4 w-4" /> {l('ເພີ່ມ Admin', 'เพิ่ม Admin', 'Add Admin')}
+                  <ShieldPlus className="h-4 w-4" /> {l('ໂອນສິດ Admin', 'โอนสิทธิ์ Admin', 'Transfer Admin')}
                 </Button>
               </div>
               {adminRoles.length === 0 ? (
@@ -708,20 +708,59 @@ const AdminPage = () => {
                           <div className="text-xs text-muted-foreground">{u?.phone || '—'}</div>
                         </div>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        className="h-8 gap-1"
-                        disabled={isMe || adminRoles.length <= 1}
-                        onClick={() => handleRemoveAdmin(role.user_id)}
-                      >
-                        <UserX className="h-3 w-3" />
-                        {l('ຖອດສິດ', 'ถอดสิทธิ์', 'Revoke')}
-                      </Button>
+                      <Badge className="bg-primary gap-1"><ShieldCheck className="h-3 w-3" /> Admin</Badge>
                     </div>
                   </Card>
                 );
               })}
+            </TabsContent>
+
+            {/* Audit Log Tab */}
+            <TabsContent value="audit" className="space-y-3">
+              <div className="flex gap-2 flex-wrap items-center">
+                <Select value={auditTableFilter} onValueChange={setAuditTableFilter}>
+                  <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{l('ທຸກຕາຕະລາງ', 'ทุกตาราง', 'All tables')}</SelectItem>
+                    <SelectItem value="jobs">jobs</SelectItem>
+                    <SelectItem value="profiles">profiles</SelectItem>
+                    <SelectItem value="reviews">reviews</SelectItem>
+                    <SelectItem value="user_roles">user_roles</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button size="sm" variant="outline" onClick={loadAuditLogs} className="gap-1">
+                  <History className="h-3 w-3" /> {l('ໂຫຼດໃໝ່', 'รีโหลด', 'Refresh')}
+                </Button>
+                <span className="text-xs text-muted-foreground ml-auto">
+                  {auditLogs.filter(a => auditTableFilter === 'all' || a.target_table === auditTableFilter).length} {l('ລາຍການ', 'รายการ', 'entries')}
+                </span>
+              </div>
+              <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                {auditLogs.filter(a => auditTableFilter === 'all' || a.target_table === auditTableFilter).length === 0 ? (
+                  <Card className="p-8 text-center text-muted-foreground">{l('ຍັງບໍ່ມີບັນທຶກ', 'ยังไม่มีบันทึก', 'No audit entries')}</Card>
+                ) : auditLogs
+                  .filter(a => auditTableFilter === 'all' || a.target_table === auditTableFilter)
+                  .map(log => {
+                    const actor = log.user_id ? (users.find(u => u.user_id === log.user_id)?.display_name || log.user_id.slice(0, 8)) : 'system';
+                    const actionColor =
+                      log.action === 'delete' ? 'bg-red-600' :
+                      log.action === 'update' ? 'bg-blue-600' :
+                      log.action === 'insert' ? 'bg-green-600' : 'bg-purple-600';
+                    return (
+                      <Card key={log.id} className="p-3 text-xs">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge className={`${actionColor} uppercase`}>{log.action}</Badge>
+                            <span className="font-mono font-semibold">{log.target_table}</span>
+                            <span className="text-muted-foreground font-mono">{log.target_id?.slice(0, 8) || '—'}</span>
+                            <span className="text-muted-foreground">{l('ໂດຍ', 'โดย', 'by')} <strong className="text-foreground">{actor}</strong></span>
+                          </div>
+                          <span className="text-muted-foreground">{log.created_at ? new Date(log.created_at).toLocaleString() : '—'}</span>
+                        </div>
+                      </Card>
+                    );
+                  })}
+              </div>
             </TabsContent>
           </Tabs>
         </div>
