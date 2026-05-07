@@ -341,7 +341,7 @@ const AdminPage = () => {
           <p className="text-xs text-muted-foreground mt-1">{l('ລະບົບຫຼັງບ້ານ', 'ระบบหลังบ้าน', 'Admin Dashboard')}</p>
         </div>
         <nav className="flex-1 p-4 space-y-1">
-          <Link to="/"><Button variant="ghost" className="w-full justify-start gap-2"><Home className="h-4 w-4" /> {l('ໜ້າຫຼັກ', 'หน้าแรก', 'Home')}</Button></Link>
+          {/* Admin area is isolated from the public site — no link back to "/" */}
         </nav>
         <div className="p-4 border-t">
           <Button variant="ghost" className="w-full justify-start gap-2 text-destructive" onClick={signOut}><LogOut className="h-4 w-4" /> {l('ອອກ', 'ออก', 'Logout')}</Button>
