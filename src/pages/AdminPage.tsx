@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Trash2, Briefcase, Users, Coins, Search, ShieldCheck, Eye, CheckCircle, XCircle,
   Minus, Plus, BarChart3, LogOut, Home, Settings, Bell,
-  UserCheck, Download, Lock, Unlock, Edit, History, UserX, Star, EyeOff, ShieldPlus
+  UserCheck, Download, Lock, Unlock, Edit, History, UserX, Star, EyeOff, ShieldPlus, FileText
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -64,6 +64,17 @@ interface ReviewRow {
   created_at: string;
 }
 
+interface AuditLogRow {
+  id: string;
+  action: string;
+  target_table: string | null;
+  target_id: string | null;
+  old_value: any;
+  new_value: any;
+  user_id: string | null;
+  created_at: string | null;
+}
+
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', '#10b981', '#f59e0b', '#ef4444', '#6366f1', '#ec4899', '#14b8a6'];
 
 const exportJobsToCSV = (jobs: Job[], filename = 'jobs-export.csv') => {
@@ -88,6 +99,8 @@ const AdminPage = () => {
   const [addAdminDialog, setAddAdminDialog] = useState(false);
   const [addAdminUserId, setAddAdminUserId] = useState('');
   const [addAdminSearch, setAddAdminSearch] = useState('');
+  const [auditLogs, setAuditLogs] = useState<AuditLogRow[]>([]);
+  const [auditTableFilter, setAuditTableFilter] = useState<string>('all');
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [kycDialog, setKycDialog] = useState<UserProfile | null>(null);
   const [coinDialog, setCoinDialog] = useState<{ user: UserProfile; mode: 'add' | 'deduct' } | null>(null);
@@ -108,7 +121,7 @@ const AdminPage = () => {
   const checkAdmin = async () => {
     const { data } = await supabase.rpc('has_role', { _user_id: user!.id, _role: 'admin' });
     setIsAdmin(!!data);
-    if (data) { loadJobs(); loadUsers(); loadTransactions(); loadReviews(); loadAdmins(); }
+    if (data) { loadJobs(); loadUsers(); loadTransactions(); loadReviews(); loadAdmins(); loadAuditLogs(); }
   };
 
   const loadJobs = async () => {
@@ -136,47 +149,45 @@ const AdminPage = () => {
     setAdminRoles((data as any) || []);
   };
 
-  const handleAddAdmin = async () => {
-    if (!addAdminUserId) return;
-    const { error } = await supabase.from('user_roles').insert({ user_id: addAdminUserId, role: 'admin' });
-    if (error) {
-      const msg = error.code === '23505'
-        ? l('ຜູ້ໃຊ້ນີ້ເປັນ Admin ແລ້ວ', 'ผู้ใช้นี้เป็น Admin อยู่แล้ว', 'Already an admin')
-        : error.message;
-      Swal.fire({ icon: 'error', title: l('ລົ້ມເຫລວ', 'ล้มเหลว', 'Failed'), text: msg });
-      return;
-    }
-    await supabase.from('notifications').insert({
-      user_id: addAdminUserId,
-      type: 'admin_granted',
-      title: l('ທ່ານໄດ້ຮັບສິດ Admin 🛡️', 'คุณได้รับสิทธิ์ Admin 🛡️', 'You are now an Admin 🛡️'),
-      body: l('ເຂົ້າ /admin ເພື່ອຈັດການລະບົບ', 'เข้า /admin เพื่อจัดการระบบ', 'Visit /admin to manage the system'),
-    } as any);
-    Swal.fire({ icon: 'success', title: l('ເພີ່ມ Admin ສຳເລັດ', 'เพิ่ม Admin สำเร็จ', 'Admin added'), timer: 1500, showConfirmButton: false });
-    setAddAdminDialog(false); setAddAdminUserId(''); setAddAdminSearch('');
-    loadAdmins();
+  const loadAuditLogs = async () => {
+    const { data } = await supabase
+      .from('audit_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(200);
+    setAuditLogs((data as AuditLogRow[]) || []);
   };
 
-  const handleRemoveAdmin = async (targetUserId: string) => {
-    if (targetUserId === user!.id) {
-      Swal.fire({ icon: 'warning', title: l('ຖອດສິດຕົນເອງບໍ່ໄດ້', 'ถอดสิทธิ์ตัวเองไม่ได้', 'Cannot revoke your own role') });
-      return;
-    }
-    const r = await Swal.fire({
+  // Single-admin model: instead of adding, we TRANSFER the admin role to another user.
+  const handleTransferAdmin = async () => {
+    if (!addAdminUserId) return;
+    const confirm = await Swal.fire({
       icon: 'warning',
-      title: l('ຖອດສິດ Admin?', 'ถอดสิทธิ์ Admin?', 'Revoke admin?'),
+      title: l('ໂອນສິດ Admin?', 'โอนสิทธิ์ Admin?', 'Transfer admin?'),
+      text: l('ຫຼັງຈາກໂອນ ທ່ານຈະບໍ່ແມ່ນ Admin ອີກຕໍ່ໄປ', 'หลังโอนคุณจะไม่ใช่ Admin อีกต่อไป', 'After transfer you will no longer be admin'),
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
-      confirmButtonText: l('ຖອດສິດ', 'ถอดสิทธิ์', 'Revoke'),
+      confirmButtonText: l('ໂອນສິດ', 'โอน', 'Transfer'),
     });
-    if (!r.isConfirmed) return;
-    const { error } = await supabase.from('user_roles').delete().eq('user_id', targetUserId).eq('role', 'admin');
+    if (!confirm.isConfirmed) return;
+    const { data, error } = await supabase.rpc('transfer_admin' as any, { _to_user_id: addAdminUserId } as any);
     if (error) {
       Swal.fire({ icon: 'error', title: l('ລົ້ມເຫລວ', 'ล้มเหลว', 'Failed'), text: error.message });
       return;
     }
-    toast.success(l('ຖອດສິດແລ້ວ', 'ถอดสิทธิ์แล้ว', 'Revoked'));
-    loadAdmins();
+    const result = data as any;
+    if (!result?.success) {
+      Swal.fire({ icon: 'error', title: l('ລົ້ມເຫລວ', 'ล้มเหลว', 'Failed'), text: result?.error || 'Unknown' });
+      return;
+    }
+    Swal.fire({
+      icon: 'success',
+      title: l('ໂອນສິດສຳເລັດ', 'โอนสำเร็จ', 'Transferred'),
+      text: l('ກຳລັງອອກຈາກລະບົບ...', 'กำลังออกจากระบบ...', 'Signing out...'),
+      timer: 1800, showConfirmButton: false,
+    });
+    setAddAdminDialog(false); setAddAdminUserId(''); setAddAdminSearch('');
+    setTimeout(async () => { await signOut(); window.location.href = '/admin-login'; }, 1800);
   };
 
   const handleSetReviewStatus = async (id: string, status: 'approved' | 'hidden') => {
@@ -330,7 +341,7 @@ const AdminPage = () => {
           <p className="text-xs text-muted-foreground mt-1">{l('ລະບົບຫຼັງບ້ານ', 'ระบบหลังบ้าน', 'Admin Dashboard')}</p>
         </div>
         <nav className="flex-1 p-4 space-y-1">
-          <Link to="/"><Button variant="ghost" className="w-full justify-start gap-2"><Home className="h-4 w-4" /> {l('ໜ້າຫຼັກ', 'หน้าแรก', 'Home')}</Button></Link>
+          {/* Admin area is isolated from the public site — no link back to "/" */}
         </nav>
         <div className="p-4 border-t">
           <Button variant="ghost" className="w-full justify-start gap-2 text-destructive" onClick={signOut}><LogOut className="h-4 w-4" /> {l('ອອກ', 'ออก', 'Logout')}</Button>
@@ -345,7 +356,9 @@ const AdminPage = () => {
           </div>
           <div className="flex items-center gap-3">
             {pendingKyc.length > 0 && <Badge className="bg-orange-500 gap-1 animate-pulse"><Bell className="h-3 w-3" /> {pendingKyc.length} KYC</Badge>}
-            <Link to="/" className="lg:hidden"><Button variant="outline" size="sm"><Home className="h-4 w-4" /></Button></Link>
+            <Button variant="outline" size="sm" onClick={signOut} className="gap-1">
+              <LogOut className="h-4 w-4" /> {l('ອອກ', 'ออก', 'Sign out')}
+            </Button>
           </div>
         </header>
 
@@ -394,7 +407,7 @@ const AdminPage = () => {
 
           {/* Tabs */}
           <Tabs defaultValue={pendingKyc.length > 0 ? 'kyc' : 'users'} className="space-y-4">
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-7">
               <TabsTrigger value="users" className="gap-2"><Users className="h-4 w-4" /> {l('ຜູ້ໃຊ້', 'ผู้ใช้', 'Users')} ({users.length})</TabsTrigger>
               <TabsTrigger value="kyc" className="gap-2 relative">
                 <ShieldCheck className="h-4 w-4" /> KYC
@@ -403,7 +416,8 @@ const AdminPage = () => {
               <TabsTrigger value="jobs" className="gap-2"><Briefcase className="h-4 w-4" /> {l('ວຽກ', 'งาน', 'Jobs')} ({jobs.length})</TabsTrigger>
               <TabsTrigger value="transactions" className="gap-2"><History className="h-4 w-4" /> {l('ປະຫວັດ', 'ประวัติ', 'History')}</TabsTrigger>
               <TabsTrigger value="reviews" className="gap-2"><Star className="h-4 w-4" /> {l('ລີວິວ', 'รีวิว', 'Reviews')} ({reviews.length})</TabsTrigger>
-              <TabsTrigger value="admins" className="gap-2"><ShieldPlus className="h-4 w-4" /> Admins ({adminRoles.length})</TabsTrigger>
+              <TabsTrigger value="admins" className="gap-2"><ShieldPlus className="h-4 w-4" /> Admin</TabsTrigger>
+              <TabsTrigger value="audit" className="gap-2"><FileText className="h-4 w-4" /> {l('ບັນທຶກ', 'บันทึก', 'Audit')}</TabsTrigger>
             </TabsList>
 
             {/* Users Tab */}
@@ -667,10 +681,10 @@ const AdminPage = () => {
             <TabsContent value="admins" className="space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
-                  {l('ບັນຊີທີ່ມີສິດ Admin', 'บัญชีที่มีสิทธิ์ Admin', 'Accounts with admin role')}
+                  {l('ມີ Admin ໄດ້ສູງສຸດ 1 ຄົນ — ໃຊ້ປຸ່ມ "ໂອນສິດ" ເພື່ອປ່ຽນເຈົ້າຂອງ', 'มี Admin ได้สูงสุด 1 คน — ใช้ปุ่ม "โอนสิทธิ์" เพื่อเปลี่ยนเจ้าของ', 'Only one admin allowed — use Transfer to hand over the role')}
                 </p>
                 <Button size="sm" onClick={() => setAddAdminDialog(true)} className="gap-2">
-                  <ShieldPlus className="h-4 w-4" /> {l('ເພີ່ມ Admin', 'เพิ่ม Admin', 'Add Admin')}
+                  <ShieldPlus className="h-4 w-4" /> {l('ໂອນສິດ Admin', 'โอนสิทธิ์ Admin', 'Transfer Admin')}
                 </Button>
               </div>
               {adminRoles.length === 0 ? (
@@ -696,20 +710,59 @@ const AdminPage = () => {
                           <div className="text-xs text-muted-foreground">{u?.phone || '—'}</div>
                         </div>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        className="h-8 gap-1"
-                        disabled={isMe || adminRoles.length <= 1}
-                        onClick={() => handleRemoveAdmin(role.user_id)}
-                      >
-                        <UserX className="h-3 w-3" />
-                        {l('ຖອດສິດ', 'ถอดสิทธิ์', 'Revoke')}
-                      </Button>
+                      <Badge className="bg-primary gap-1"><ShieldCheck className="h-3 w-3" /> Admin</Badge>
                     </div>
                   </Card>
                 );
               })}
+            </TabsContent>
+
+            {/* Audit Log Tab */}
+            <TabsContent value="audit" className="space-y-3">
+              <div className="flex gap-2 flex-wrap items-center">
+                <Select value={auditTableFilter} onValueChange={setAuditTableFilter}>
+                  <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{l('ທຸກຕາຕະລາງ', 'ทุกตาราง', 'All tables')}</SelectItem>
+                    <SelectItem value="jobs">jobs</SelectItem>
+                    <SelectItem value="profiles">profiles</SelectItem>
+                    <SelectItem value="reviews">reviews</SelectItem>
+                    <SelectItem value="user_roles">user_roles</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button size="sm" variant="outline" onClick={loadAuditLogs} className="gap-1">
+                  <History className="h-3 w-3" /> {l('ໂຫຼດໃໝ່', 'รีโหลด', 'Refresh')}
+                </Button>
+                <span className="text-xs text-muted-foreground ml-auto">
+                  {auditLogs.filter(a => auditTableFilter === 'all' || a.target_table === auditTableFilter).length} {l('ລາຍການ', 'รายการ', 'entries')}
+                </span>
+              </div>
+              <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                {auditLogs.filter(a => auditTableFilter === 'all' || a.target_table === auditTableFilter).length === 0 ? (
+                  <Card className="p-8 text-center text-muted-foreground">{l('ຍັງບໍ່ມີບັນທຶກ', 'ยังไม่มีบันทึก', 'No audit entries')}</Card>
+                ) : auditLogs
+                  .filter(a => auditTableFilter === 'all' || a.target_table === auditTableFilter)
+                  .map(log => {
+                    const actor = log.user_id ? (users.find(u => u.user_id === log.user_id)?.display_name || log.user_id.slice(0, 8)) : 'system';
+                    const actionColor =
+                      log.action === 'delete' ? 'bg-red-600' :
+                      log.action === 'update' ? 'bg-blue-600' :
+                      log.action === 'insert' ? 'bg-green-600' : 'bg-purple-600';
+                    return (
+                      <Card key={log.id} className="p-3 text-xs">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge className={`${actionColor} uppercase`}>{log.action}</Badge>
+                            <span className="font-mono font-semibold">{log.target_table}</span>
+                            <span className="text-muted-foreground font-mono">{log.target_id?.slice(0, 8) || '—'}</span>
+                            <span className="text-muted-foreground">{l('ໂດຍ', 'โดย', 'by')} <strong className="text-foreground">{actor}</strong></span>
+                          </div>
+                          <span className="text-muted-foreground">{log.created_at ? new Date(log.created_at).toLocaleString() : '—'}</span>
+                        </div>
+                      </Card>
+                    );
+                  })}
+              </div>
             </TabsContent>
           </Tabs>
         </div>
@@ -770,10 +823,12 @@ const AdminPage = () => {
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <ShieldPlus className="h-5 w-5" /> {l('ເພີ່ມ Admin', 'เพิ่ม Admin', 'Add Admin')}
+                <ShieldPlus className="h-5 w-5" /> {l('ໂອນສິດ Admin', 'โอนสิทธิ์ Admin', 'Transfer Admin')}
               </DialogTitle>
               <DialogDescription>
-                {l('ເລືອກຜູ້ໃຊ້ທີ່ຈະໃຫ້ສິດ', 'เลือกผู้ใช้ที่จะให้สิทธิ์', 'Pick a user to grant admin access')}
+                {l('ມີ Admin ໄດ້ສູງສຸດ 1 ຄົນ. ຫຼັງຈາກໂອນແລ້ວ ທ່ານຈະບໍ່ມີສິດ Admin ອີກ.',
+                   'มี Admin ได้สูงสุด 1 คน หลังโอนแล้วคุณจะไม่มีสิทธิ์ Admin อีก',
+                   'Only one admin allowed. After transfer you will lose admin access.')}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
@@ -818,8 +873,8 @@ const AdminPage = () => {
               <Button variant="outline" onClick={() => { setAddAdminDialog(false); setAddAdminUserId(''); }}>
                 {l('ຍົກເລີກ', 'ยกเลิก', 'Cancel')}
               </Button>
-              <Button onClick={handleAddAdmin} disabled={!addAdminUserId} className="gap-2">
-                <ShieldPlus className="h-4 w-4" /> {l('ໃຫ້ສິດ Admin', 'ให้สิทธิ์ Admin', 'Grant Admin')}
+              <Button onClick={handleTransferAdmin} disabled={!addAdminUserId} className="gap-2">
+                <ShieldPlus className="h-4 w-4" /> {l('ໂອນສິດ Admin', 'โอนสิทธิ์ Admin', 'Transfer Admin')}
               </Button>
             </DialogFooter>
           </DialogContent>

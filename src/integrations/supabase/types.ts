@@ -647,6 +647,7 @@ export type Database = {
         Args: { _amount: number; _description: string; _type: string }
         Returns: boolean
       }
+      transfer_admin: { Args: { _to_user_id: string }; Returns: Json }
       transfer_coins: {
         Args: { _amount: number; _description: string; _to_user_id: string }
         Returns: boolean
