@@ -869,8 +869,8 @@ const AdminPage = () => {
               <Button variant="outline" onClick={() => { setAddAdminDialog(false); setAddAdminUserId(''); }}>
                 {l('ຍົກເລີກ', 'ยกเลิก', 'Cancel')}
               </Button>
-              <Button onClick={handleAddAdmin} disabled={!addAdminUserId} className="gap-2">
-                <ShieldPlus className="h-4 w-4" /> {l('ໃຫ້ສິດ Admin', 'ให้สิทธิ์ Admin', 'Grant Admin')}
+              <Button onClick={handleTransferAdmin} disabled={!addAdminUserId} className="gap-2">
+                <ShieldPlus className="h-4 w-4" /> {l('ໂອນສິດ Admin', 'โอนสิทธิ์ Admin', 'Transfer Admin')}
               </Button>
             </DialogFooter>
           </DialogContent>
