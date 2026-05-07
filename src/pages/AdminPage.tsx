@@ -821,10 +821,12 @@ const AdminPage = () => {
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <ShieldPlus className="h-5 w-5" /> {l('ເພີ່ມ Admin', 'เพิ่ม Admin', 'Add Admin')}
+                <ShieldPlus className="h-5 w-5" /> {l('ໂອນສິດ Admin', 'โอนสิทธิ์ Admin', 'Transfer Admin')}
               </DialogTitle>
               <DialogDescription>
-                {l('ເລືອກຜູ້ໃຊ້ທີ່ຈະໃຫ້ສິດ', 'เลือกผู้ใช้ที่จะให้สิทธิ์', 'Pick a user to grant admin access')}
+                {l('ມີ Admin ໄດ້ສູງສຸດ 1 ຄົນ. ຫຼັງຈາກໂອນແລ້ວ ທ່ານຈະບໍ່ມີສິດ Admin ອີກ.',
+                   'มี Admin ได้สูงสุด 1 คน หลังโอนแล้วคุณจะไม่มีสิทธิ์ Admin อีก',
+                   'Only one admin allowed. After transfer you will lose admin access.')}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
