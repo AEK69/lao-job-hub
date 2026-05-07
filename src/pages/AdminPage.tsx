@@ -289,15 +289,8 @@ const AdminPage = () => {
 
   if (!user) return <Navigate to="/admin-login" />;
   if (isAdmin === null) return <div className="min-h-screen flex items-center justify-center"><span className="animate-pulse text-2xl">⏳</span></div>;
-  if (!isAdmin) return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <Card className="p-8 text-center max-w-md">
-        <span className="text-5xl block mb-4">🔒</span>
-        <p className="text-muted-foreground mb-4">{l('ຕ້ອງເປັນ Admin', 'ต้องเป็นผู้ดูแลระบบ', 'Admin access required')}</p>
-        <Link to="/"><Button>{l('ກັບໄປໜ້າຫຼັກ', 'กลับไปหน้าแรก', 'Go Home')}</Button></Link>
-      </Card>
-    </div>
-  );
+  // Non-admin users are auto-redirected to the admin login screen — no admin UI is ever rendered for them
+  if (!isAdmin) return <Navigate to="/admin-login" replace />;
 
   const pendingKyc = users.filter(u => u.kyc_status === 'pending' && u.id_card_url);
   const filteredUsers = users.filter(u => {
