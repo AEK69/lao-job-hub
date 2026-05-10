@@ -18,6 +18,7 @@ import KYCPage from "./pages/KYCPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import PublicProfilePage from "./pages/PublicProfilePage.tsx";
 import { BottomNavigation } from "@/components/BottomNavigation";
+import { AIAssistant } from "@/components/AIAssistant";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => (
                 <Route path="*" element={<NotFound />} />
               </Routes>
               <BottomNavigation />
+              <AIAssistant />
             </div>
           </BrowserRouter>
         </TooltipProvider>
