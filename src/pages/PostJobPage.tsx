@@ -53,6 +53,23 @@ const PostJobPage = () => {
     }
   }, [profile]);
 
+  // Auto-fill from AI-generated template (sessionStorage)
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('ai_job_template');
+      if (!raw) return;
+      const tpl = JSON.parse(raw);
+      sessionStorage.removeItem('ai_job_template');
+      setForm(prev => ({
+        ...prev,
+        title: tpl.title || prev.title,
+        description: tpl.description || prev.description,
+        salary: typeof tpl.price === 'string' ? tpl.price.replace(/[^\d]/g, '') || prev.salary : prev.salary,
+        address: tpl.location || prev.address,
+      }));
+    } catch { /* ignore */ }
+  }, []);
+
   if (!user) return <Navigate to="/auth" />;
 
   // Check KYC status
