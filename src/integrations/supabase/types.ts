@@ -204,6 +204,8 @@ export type Database = {
           description: string | null
           discount: number | null
           district: string | null
+          employer_confirmed: boolean
+          escrow_amount: number
           id: string
           image_url: string | null
           is_featured: boolean
@@ -231,6 +233,7 @@ export type Database = {
           user_id: string | null
           work_date: string | null
           work_time: string | null
+          worker_confirmed: boolean
         }
         Insert: {
           accepted_at?: string | null
@@ -249,6 +252,8 @@ export type Database = {
           description?: string | null
           discount?: number | null
           district?: string | null
+          employer_confirmed?: boolean
+          escrow_amount?: number
           id?: string
           image_url?: string | null
           is_featured?: boolean
@@ -276,6 +281,7 @@ export type Database = {
           user_id?: string | null
           work_date?: string | null
           work_time?: string | null
+          worker_confirmed?: boolean
         }
         Update: {
           accepted_at?: string | null
@@ -294,6 +300,8 @@ export type Database = {
           description?: string | null
           discount?: number | null
           district?: string | null
+          employer_confirmed?: boolean
+          escrow_amount?: number
           id?: string
           image_url?: string | null
           is_featured?: boolean
@@ -321,6 +329,7 @@ export type Database = {
           user_id?: string | null
           work_date?: string | null
           work_time?: string | null
+          worker_confirmed?: boolean
         }
         Relationships: [
           {
@@ -634,6 +643,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_job_escrow: { Args: { _job_id: string }; Returns: Json }
       admin_topup_coins: {
         Args: { _amount: number; _description: string; _to_user_id: string }
         Returns: Json
@@ -642,6 +652,8 @@ export type Database = {
         Args: { _status: string; _target_user_id: string }
         Returns: boolean
       }
+      cancel_accepted_job: { Args: { _job_id: string }; Returns: Json }
+      confirm_job_completion: { Args: { _job_id: string }; Returns: Json }
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
       spend_coins: {
         Args: { _amount: number; _description: string; _type: string }

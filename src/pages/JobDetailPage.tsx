@@ -7,7 +7,7 @@ import { Footer } from '@/components/Footer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { MapPin, Phone, Clock, Flame, ArrowLeft, MessageCircle, Star, CheckCircle, HandCoins } from 'lucide-react';
+import { MapPin, Phone, Clock, Flame, ArrowLeft, MessageCircle, Star, CheckCircle, HandCoins, XCircle } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
@@ -111,7 +111,11 @@ const JobDetailPage = () => {
     const result = await Swal.fire({
       icon: 'question',
       title: l('ຢືນຢັນຮັບງານ?', 'ยืนยันรับงาน?', 'Accept this job?'),
-      text: l(`ຄ່າຕອບແທນ: ${formatSalary(job.salary)} ₭`, `ค่าตอบแทน: ${formatSalary(job.salary)} ₭`, `Compensation: ${formatSalary(job.salary)} ₭`),
+      html: l(
+        `ຄ່າຕອບແທນ: <b>${formatSalary(job.salary)}₭</b><br/><small>ເງິນຈະຖືກພັກໄວ້ໃນລະບົບຈົນກວ່າທັງສອງຝ່າຍຍືນຢັນຈົບງານ</small>`,
+        `ค่าตอบแทน: <b>${formatSalary(job.salary)}₭</b><br/><small>เงินจะถูกพักไว้ในระบบจนกว่าทั้งสองฝ่ายยืนยันงานเสร็จ</small>`,
+        `Pay: <b>${formatSalary(job.salary)}₭</b><br/><small>Funds held in escrow until both confirm completion</small>`
+      ),
       showCancelButton: true,
       confirmButtonText: l('ຮັບງານ', 'รับงาน', 'Accept'),
       cancelButtonText: l('ຍົກເລີກ', 'ยกเลิก', 'Cancel'),
@@ -119,72 +123,66 @@ const JobDetailPage = () => {
     });
     if (!result.isConfirmed) return;
 
-    const { error } = await supabase.from('jobs').update({
-      accepted_by: user.id,
-      accepted_at: new Date().toISOString(),
-      status: 'accepted',
-    } as any).eq('id', job.id).eq('status', 'active');
+    const { data, error } = await supabase.rpc('accept_job_escrow' as any, { _job_id: job.id });
+    if (error || !(data as any)?.success) {
+      Swal.fire({ icon: 'error', title: l('ຮັບງານບໍ່ສຳເລັດ', 'รับงานไม่สำเร็จ', 'Could not accept'), text: (data as any)?.error || error?.message });
+      return;
+    }
 
-    if (error) { Swal.fire({ icon: 'error', text: error.message }); return; }
-
-    // Send notification to job owner
-    await supabase.from('notifications').insert({
-      user_id: job.user_id,
-      type: 'job_accepted',
-      title: l('ມີຄົນຮັບງານຂອງທ່ານ!', 'มีคนรับงานของคุณ!', 'Someone accepted your job!'),
-      body: `${profile?.display_name} ${l('ຮັບງານ', 'รับงาน', 'accepted')}: ${job.title}`,
-      job_id: job.id,
-      sender_id: user.id,
-    } as any);
-
-    Swal.fire({ icon: 'success', title: l('ຮັບງານສຳເລັດ!', 'รับงานสำเร็จ!', 'Job Accepted!'), timer: 2000, showConfirmButton: false });
-    setJob({ ...job, accepted_by: user.id, accepted_at: new Date().toISOString(), status: 'accepted' });
-    setAcceptorName(profile?.display_name || '');
+    await Swal.fire({ icon: 'success', title: l('ຮັບງານສຳເລັດ! ກຳລັງເປີດແຊັດ...', 'รับงานสำเร็จ! กำลังเปิดแชท...', 'Accepted! Opening chat...'), timer: 1500, showConfirmButton: false });
+    navigate(`/chat?job=${job.id}&to=${job.user_id}`);
   };
 
-  // Employer confirms completion & pays
-  const handleConfirmComplete = async () => {
-    if (!job.accepted_by) return;
-    const salaryAmount = parseInt(job.salary) || 0;
-
+  // Either party confirms completion; payout when both confirmed
+  const handleConfirmDone = async () => {
     const result = await Swal.fire({
       icon: 'question',
-      title: l('ຢືນຢັນງານສຳເລັດ?', 'ยืนยันงานเสร็จ?', 'Confirm job complete?'),
-      html: salaryAmount > 0 ? l(`ຈະໂອນ ${salaryAmount.toLocaleString()} ຫຼຽນ ໃຫ້ຜູ້ຮັບງານ`, `จะโอน ${salaryAmount.toLocaleString()} เหรียญ ให้ผู้รับงาน`, `Transfer ${salaryAmount.toLocaleString()} coins to worker`) : '',
+      title: l('ຢືນຢັນວ່າງານສຳເລັດ?', 'ยืนยันว่างานเสร็จ?', 'Confirm job done?'),
+      text: l('ເງິນຈະຈ່າຍໃຫ້ຜູ້ຮັບງານເມື່ອທັງສອງຝ່າຍຍືນຢັນ', 'เงินจะจ่ายให้ผู้รับงานเมื่อทั้งสองฝ่ายยืนยัน', 'Payout happens when both sides confirm'),
       showCancelButton: true,
-      confirmButtonText: l('ຢືນຢັນ & ຈ່າຍ', 'ยืนยัน & จ่าย', 'Confirm & Pay'),
+      confirmButtonText: l('ຍືນຢັນ', 'ยืนยัน', 'Confirm'),
       cancelButtonText: l('ຍົກເລີກ', 'ยกเลิก', 'Cancel'),
       confirmButtonColor: 'hsl(142, 76%, 36%)',
     });
     if (!result.isConfirmed) return;
 
-    // Transfer coins if salary > 0
-    if (salaryAmount > 0) {
-      const { data: success } = await supabase.rpc('transfer_coins' as any, {
-        _to_user_id: job.accepted_by,
-        _amount: salaryAmount,
-        _description: `${l('ຈ່າຍຄ່າງານ', 'จ่ายค่างาน', 'Job payment')}: ${job.title}`,
-      });
-      if (!success) {
-        Swal.fire({ icon: 'error', title: l('ຫຼຽນບໍ່ພໍ', 'เหรียญไม่พอ', 'Not enough coins'), text: l('ກະລຸນາເຕີມຫຼຽນກ່ອນ', 'กรุณาเติมเหรียญก่อน', 'Please top up coins first') });
-        return;
-      }
+    const { data, error } = await supabase.rpc('confirm_job_completion' as any, { _job_id: job.id });
+    if (error || !(data as any)?.success) {
+      Swal.fire({ icon: 'error', text: (data as any)?.error || error?.message });
+      return;
     }
+    if ((data as any).completed) {
+      Swal.fire({ icon: 'success', title: l('ສຳເລັດ! ຈ່າຍແລ້ວ', 'สำเร็จ! จ่ายแล้ว', 'Complete! Paid'), timer: 1800, showConfirmButton: false });
+      const { data: fresh } = await supabase.from('jobs').select('*').eq('id', job.id).single();
+      if (fresh) setJob(fresh as Job);
+    } else {
+      Swal.fire({ icon: 'info', title: l('ຍືນຢັນແລ້ວ', 'ยืนยันแล้ว', 'Confirmed'), text: l('ລໍຖ້າອີກຝ່າຍຍືນຢັນ', 'รออีกฝ่ายยืนยัน', 'Waiting for the other party'), timer: 1800, showConfirmButton: false });
+      const { data: fresh } = await supabase.from('jobs').select('*').eq('id', job.id).single();
+      if (fresh) setJob(fresh as Job);
+    }
+  };
 
-    await supabase.from('jobs').update({ status: 'completed' } as any).eq('id', job.id);
+  // Cancel an accepted job — refund employer, reopen
+  const handleCancelAccepted = async () => {
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: l('ຍົກເລີກງານ?', 'ยกเลิกงาน?', 'Cancel job?'),
+      text: l('ເງິນຈະຖືກຄືນໃຫ້ຜູ້ວ່າຈ້າງ ແລະ ງານຈະເປີດໃຫ້ຄົນອື່ນຮັບໄດ້ອີກ', 'เงินจะถูกคืนให้ผู้ว่าจ้าง และงานจะเปิดให้คนอื่นรับได้อีก', 'Funds return to employer; job reopens'),
+      showCancelButton: true,
+      confirmButtonText: l('ຍົກເລີກງານ', 'ยกเลิกงาน', 'Cancel job'),
+      cancelButtonText: l('ກັບ', 'กลับ', 'Back'),
+      confirmButtonColor: 'hsl(0, 72%, 51%)',
+    });
+    if (!result.isConfirmed) return;
 
-    // Notify worker of completion
-    await supabase.from('notifications').insert({
-      user_id: job.accepted_by,
-      type: 'job_completed',
-      title: l('ງານສຳເລັດ! ໄດ້ຮັບຫຼຽນ', 'งานเสร็จ! ได้รับเหรียญ', 'Job Complete! Coins received'),
-      body: `${job.title} - ${salaryAmount.toLocaleString()}₭`,
-      job_id: job.id,
-      sender_id: user!.id,
-    } as any);
-
-    Swal.fire({ icon: 'success', title: l('ສຳເລັດ! ຈ່າຍແລ້ວ', 'สำเร็จ! จ่ายแล้ว', 'Complete! Paid'), timer: 2000, showConfirmButton: false });
-    setJob({ ...job, status: 'completed' });
+    const { data, error } = await supabase.rpc('cancel_accepted_job' as any, { _job_id: job.id });
+    if (error || !(data as any)?.success) {
+      Swal.fire({ icon: 'error', text: (data as any)?.error || error?.message });
+      return;
+    }
+    Swal.fire({ icon: 'success', title: l('ຍົກເລີກສຳເລັດ', 'ยกเลิกสำเร็จ', 'Cancelled'), timer: 1500, showConfirmButton: false });
+    const { data: fresh } = await supabase.from('jobs').select('*').eq('id', job.id).single();
+    if (fresh) { setJob(fresh as Job); setAcceptorName(null); }
   };
 
   const isOwner = user?.id === job.user_id;
@@ -210,6 +208,13 @@ const JobDetailPage = () => {
                 <div>
                   <div className="font-semibold text-blue-800 text-sm">{l('ງານຖືກຮັບແລ້ວ', 'งานถูกรับแล้ว', 'Job Accepted')}</div>
                   <div className="text-xs text-blue-600">{l('ໂດຍ', 'โดย', 'By')}: {acceptorName || '...'}</div>
+                  <div className="text-xs text-blue-700 mt-1">
+                    💰 {l('ເງິນພັກໄວ້', 'เงินพักไว้', 'Escrow')}: {((job as any).escrow_amount || 0).toLocaleString()}₭
+                    {' · '}
+                    {l('ຜູ້ວ່າຈ້າງ', 'ผู้ว่าจ้าง', 'Employer')}: {(job as any).employer_confirmed ? '✅' : '⏳'}
+                    {' · '}
+                    {l('ຜູ້ຮັບງານ', 'ผู้รับงาน', 'Worker')}: {(job as any).worker_confirmed ? '✅' : '⏳'}
+                  </div>
                 </div>
               </div>
             )}
@@ -310,11 +315,18 @@ const JobDetailPage = () => {
                 </Button>
               )}
 
-              {/* Employer confirm completion */}
-              {isOwner && isAccepted && (
-                <Button size="lg" className="flex-1 gap-2 bg-green-600 hover:bg-green-700" onClick={handleConfirmComplete}>
-                  <CheckCircle className="h-4 w-4" /> {l('ຢືນຢັນສຳເລັດ & ຈ່າຍ', 'ยืนยันเสร็จ & จ่าย', 'Confirm & Pay')}
-                </Button>
+              {/* Either party confirms completion */}
+              {(isOwner || isAcceptor) && isAccepted && (
+                <>
+                  {!((isOwner && (job as any).employer_confirmed) || (isAcceptor && (job as any).worker_confirmed)) && (
+                    <Button size="lg" className="flex-1 gap-2 bg-green-600 hover:bg-green-700" onClick={handleConfirmDone}>
+                      <CheckCircle className="h-4 w-4" /> {l('ຍືນຢັນສຳເລັດ', 'ยืนยันเสร็จ', 'Confirm Done')}
+                    </Button>
+                  )}
+                  <Button size="lg" variant="destructive" className="gap-2" onClick={handleCancelAccepted}>
+                    <XCircle className="h-4 w-4" /> {l('ຍົກເລີກງານ', 'ยกเลิกงาน', 'Cancel Job')}
+                  </Button>
+                </>
               )}
 
               <Button size="lg" className="flex-1 gap-2" asChild>
