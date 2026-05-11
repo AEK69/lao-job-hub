@@ -1190,6 +1190,114 @@ const AdminPage = () => {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Edit User Dialog */}
+      {editUserDialog && (
+        <Dialog open={!!editUserDialog} onOpenChange={() => setEditUserDialog(null)}>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2"><Edit className="h-5 w-5" /> {l('ແກ້ໄຂຜູ້ໃຊ້', 'แก้ไขผู้ใช้', 'Edit User')}</DialogTitle>
+              <DialogDescription>{editUserDialog.display_name}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-semibold mb-1 block">{l('ຊື່ສະແດງ', 'ชื่อแสดง', 'Display Name')}</label>
+                  <Input value={editUserForm.display_name || ''} onChange={e => setEditUserForm({ ...editUserForm, display_name: e.target.value })} />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold mb-1 block">{l('ຊື່ເຕັມ', 'ชื่อเต็ม', 'Full Name')}</label>
+                  <Input value={editUserForm.full_name || ''} onChange={e => setEditUserForm({ ...editUserForm, full_name: e.target.value })} />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold mb-1 block">{l('ເບີໂທ', 'เบอร์โทร', 'Phone')}</label>
+                  <Input value={editUserForm.phone || ''} onChange={e => setEditUserForm({ ...editUserForm, phone: e.target.value })} />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold mb-1 block">{l('ວັນເກີດ', 'วันเกิด', 'Date of Birth')}</label>
+                  <Input type="date" value={editUserForm.date_of_birth || ''} onChange={e => setEditUserForm({ ...editUserForm, date_of_birth: e.target.value })} />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold mb-1 block">{l('ເມືອງ', 'เมือง', 'District')}</label>
+                  <Select value={editUserForm.district || ''} onValueChange={v => setEditUserForm({ ...editUserForm, district: v })}>
+                    <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent>
+                      {districts.map(d => (<SelectItem key={d.id} value={d.id}>{d[language] || d.lo}</SelectItem>))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-semibold mb-1 block">KYC</label>
+                  <Select value={editUserForm.kyc_status || ''} onValueChange={v => setEditUserForm({ ...editUserForm, kyc_status: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">⏳ Pending</SelectItem>
+                      <SelectItem value="approved">✅ Approved</SelectItem>
+                      <SelectItem value="rejected">❌ Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-semibold mb-1 block">{l('ທີ່ຢູ່', 'ที่อยู่', 'Address')}</label>
+                <Textarea rows={2} value={editUserForm.address || ''} onChange={e => setEditUserForm({ ...editUserForm, address: e.target.value })} />
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={editUserForm.is_student || false} onChange={e => setEditUserForm({ ...editUserForm, is_student: e.target.checked })} />
+                📚 {l('ນັກສຶກສາ', 'นักศึกษา', 'Student')}
+              </label>
+              {editUserForm.is_student && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-semibold mb-1 block">{l('ຊື່ຜູ້ປົກຄອງ', 'ชื่อผู้ปกครอง', 'Guardian')}</label>
+                    <Input value={editUserForm.guardian_name || ''} onChange={e => setEditUserForm({ ...editUserForm, guardian_name: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold mb-1 block">{l('ເບີຜູ້ປົກຄອງ', 'เบอร์ผู้ปกครอง', 'Guardian Phone')}</label>
+                    <Input value={editUserForm.guardian_phone || ''} onChange={e => setEditUserForm({ ...editUserForm, guardian_phone: e.target.value })} />
+                  </div>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditUserDialog(null)}>{l('ຍົກເລີກ', 'ยกเลิก', 'Cancel')}</Button>
+              <Button onClick={handleSaveUser}>{l('ບັນທຶກ', 'บันทึก', 'Save')}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Service / Category Dialog */}
+      {serviceDialog && (
+        <Dialog open={!!serviceDialog} onOpenChange={() => setServiceDialog(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Tag className="h-5 w-5" />
+                {serviceDialog === 'new' ? l('ເພີ່ມບໍລິການ', 'เพิ่มบริการ', 'New Service') : l('ແກ້ໄຂບໍລິການ', 'แก้ไขบริการ', 'Edit Service')}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-semibold mb-1 block">{l('ຊື່ບໍລິການ', 'ชื่อบริการ', 'Name')}</label>
+                <Input value={serviceForm.name} onChange={e => setServiceForm({ ...serviceForm, name: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-sm font-semibold mb-1 block">{l('ລາຄາພື້ນຖານ (₭)', 'ราคาเริ่มต้น (₭)', 'Base Price (₭)')}</label>
+                <Input type="number" min="0" value={serviceForm.base_price} onChange={e => setServiceForm({ ...serviceForm, base_price: parseInt(e.target.value) || 0 })} />
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={serviceForm.active} onChange={e => setServiceForm({ ...serviceForm, active: e.target.checked })} />
+                {l('ເປີດໃຊ້ງານ', 'เปิดใช้งาน', 'Active')}
+              </label>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setServiceDialog(null)}>{l('ຍົກເລີກ', 'ยกเลิก', 'Cancel')}</Button>
+              <Button onClick={handleSaveService}>{l('ບັນທຶກ', 'บันทึก', 'Save')}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };
