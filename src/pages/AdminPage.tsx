@@ -14,7 +14,8 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Trash2, Briefcase, Users, Coins, Search, ShieldCheck, Eye, CheckCircle, XCircle,
   Minus, Plus, BarChart3, LogOut, Home, Settings, Bell,
-  UserCheck, Download, Lock, Unlock, Edit, History, UserX, Star, EyeOff, ShieldPlus, FileText
+  UserCheck, Download, Lock, Unlock, Edit, History, UserX, Star, EyeOff, ShieldPlus, FileText,
+  Tag, Megaphone, Database, DollarSign
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -75,6 +76,14 @@ interface AuditLogRow {
   created_at: string | null;
 }
 
+interface ServiceRow {
+  id: string;
+  name: string;
+  base_price: number;
+  active: boolean | null;
+  created_at: string | null;
+}
+
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', '#10b981', '#f59e0b', '#ef4444', '#6366f1', '#ec4899', '#14b8a6'];
 
 const exportJobsToCSV = (jobs: Job[], filename = 'jobs-export.csv') => {
@@ -82,6 +91,23 @@ const exportJobsToCSV = (jobs: Job[], filename = 'jobs-export.csv') => {
   const rows = jobs.map(job => [job.id, `"${job.title}"`, job.category, job.district, job.salary, `"${job.poster_name}"`, job.post_type, job.status, new Date(job.created_at).toLocaleDateString(), job.is_urgent ? 'Yes' : 'No', job.is_featured ? 'Yes' : 'No']);
   const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = window.URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+};
+
+// Generic CSV exporter — handles any array of objects
+const exportToCSV = (rows: any[], filename: string) => {
+  if (!rows.length) return;
+  const headers = Object.keys(rows[0]);
+  const escape = (v: any) => {
+    if (v === null || v === undefined) return '';
+    const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+    return `"${s.replace(/"/g, '""')}"`;
+  };
+  const csv = [headers.join(','), ...rows.map(r => headers.map(h => escape(r[h])).join(','))].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
   a.href = window.URL.createObjectURL(blob);
   a.download = filename;
@@ -101,6 +127,13 @@ const AdminPage = () => {
   const [addAdminSearch, setAddAdminSearch] = useState('');
   const [auditLogs, setAuditLogs] = useState<AuditLogRow[]>([]);
   const [auditTableFilter, setAuditTableFilter] = useState<string>('all');
+  const [services, setServices] = useState<ServiceRow[]>([]);
+  const [serviceDialog, setServiceDialog] = useState<ServiceRow | 'new' | null>(null);
+  const [serviceForm, setServiceForm] = useState<{ name: string; base_price: number; active: boolean }>({ name: '', base_price: 0, active: true });
+  const [broadcastDialog, setBroadcastDialog] = useState(false);
+  const [broadcastForm, setBroadcastForm] = useState<{ title: string; body: string; target: 'all' | 'kyc_approved' | 'kyc_pending' }>({ title: '', body: '', target: 'all' });
+  const [editUserDialog, setEditUserDialog] = useState<UserProfile | null>(null);
+  const [editUserForm, setEditUserForm] = useState<Partial<UserProfile>>({});
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [kycDialog, setKycDialog] = useState<UserProfile | null>(null);
   const [coinDialog, setCoinDialog] = useState<{ user: UserProfile; mode: 'add' | 'deduct' } | null>(null);
@@ -121,7 +154,7 @@ const AdminPage = () => {
   const checkAdmin = async () => {
     const { data } = await supabase.rpc('has_role', { _user_id: user!.id, _role: 'admin' });
     setIsAdmin(!!data);
-    if (data) { loadJobs(); loadUsers(); loadTransactions(); loadReviews(); loadAdmins(); loadAuditLogs(); }
+    if (data) { loadJobs(); loadUsers(); loadTransactions(); loadReviews(); loadAdmins(); loadAuditLogs(); loadServices(); }
   };
 
   const loadJobs = async () => {
@@ -156,6 +189,82 @@ const AdminPage = () => {
       .order('created_at', { ascending: false })
       .limit(200);
     setAuditLogs((data as AuditLogRow[]) || []);
+  };
+
+  const loadServices = async () => {
+    const { data } = await supabase.from('services').select('*').order('created_at', { ascending: false });
+    setServices((data as ServiceRow[]) || []);
+  };
+
+  // === Service / Category management ===
+  const openServiceDialog = (svc: ServiceRow | 'new') => {
+    setServiceDialog(svc);
+    if (svc === 'new') setServiceForm({ name: '', base_price: 0, active: true });
+    else setServiceForm({ name: svc.name, base_price: svc.base_price, active: svc.active ?? true });
+  };
+  const handleSaveService = async () => {
+    if (!serviceForm.name.trim()) { toast.error(l('ໃສ່ຊື່', 'กรอกชื่อ', 'Enter name')); return; }
+    if (serviceDialog === 'new') {
+      const { error } = await supabase.from('services').insert(serviceForm as any);
+      if (error) { toast.error(error.message); return; }
+    } else if (serviceDialog) {
+      const { error } = await supabase.from('services').update(serviceForm as any).eq('id', serviceDialog.id);
+      if (error) { toast.error(error.message); return; }
+    }
+    toast.success(l('ບັນທຶກແລ້ວ', 'บันทึกแล้ว', 'Saved'));
+    setServiceDialog(null);
+    loadServices();
+  };
+  const handleDeleteService = async (svc: ServiceRow) => {
+    const r = await Swal.fire({ icon: 'warning', title: l('ລຶບ?', 'ลบ?', 'Delete?'), text: svc.name, showCancelButton: true, confirmButtonColor: '#ef4444' });
+    if (!r.isConfirmed) return;
+    const { error } = await supabase.from('services').delete().eq('id', svc.id);
+    if (error) toast.error(error.message);
+    else { toast.success(l('ລຶບແລ້ວ', 'ลบแล้ว', 'Deleted')); loadServices(); }
+  };
+
+  // === Broadcast notification ===
+  const handleBroadcast = async () => {
+    if (!broadcastForm.title.trim()) { toast.error(l('ໃສ່ຫົວຂໍ້', 'กรอกหัวข้อ', 'Enter title')); return; }
+    let targets = users;
+    if (broadcastForm.target === 'kyc_approved') targets = users.filter(u => u.kyc_status === 'approved');
+    else if (broadcastForm.target === 'kyc_pending') targets = users.filter(u => u.kyc_status === 'pending');
+    if (!targets.length) { toast.error(l('ບໍ່ມີຜູ້ຮັບ', 'ไม่มีผู้รับ', 'No recipients')); return; }
+    const r = await Swal.fire({
+      icon: 'question',
+      title: l(`ສົ່ງຫາ ${targets.length} ຄົນ?`, `ส่งหา ${targets.length} คน?`, `Send to ${targets.length} users?`),
+      showCancelButton: true, confirmButtonText: l('ສົ່ງ', 'ส่ง', 'Send'),
+    });
+    if (!r.isConfirmed) return;
+    const rows = targets.map(u => ({ user_id: u.user_id, title: broadcastForm.title, body: broadcastForm.body, type: 'broadcast', sender_id: user!.id }));
+    // chunk to avoid payload limits
+    for (let i = 0; i < rows.length; i += 200) {
+      const slice = rows.slice(i, i + 200);
+      const { error } = await supabase.from('notifications').insert(slice as any);
+      if (error) { toast.error(error.message); return; }
+    }
+    Swal.fire({ icon: 'success', title: l('ສົ່ງສຳເລັດ', 'ส่งสำเร็จ', 'Sent'), timer: 1800, showConfirmButton: false });
+    setBroadcastDialog(false);
+    setBroadcastForm({ title: '', body: '', target: 'all' });
+  };
+
+  // === Full user edit ===
+  const openEditUser = (u: UserProfile) => {
+    setEditUserDialog(u);
+    setEditUserForm({
+      display_name: u.display_name, phone: u.phone, full_name: u.full_name,
+      district: u.district, address: u.address, kyc_status: u.kyc_status,
+      is_student: u.is_student, guardian_name: u.guardian_name, guardian_phone: u.guardian_phone,
+      date_of_birth: u.date_of_birth,
+    });
+  };
+  const handleSaveUser = async () => {
+    if (!editUserDialog) return;
+    const { error } = await supabase.from('profiles').update(editUserForm as any).eq('user_id', editUserDialog.user_id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(l('ບັນທຶກແລ້ວ', 'บันทึกแล้ว', 'Saved'));
+    setEditUserDialog(null);
+    loadUsers();
   };
 
   // Single-admin model: instead of adding, we TRANSFER the admin role to another user.
@@ -318,6 +427,10 @@ const AdminPage = () => {
   const totalCoins = users.reduce((s, u) => s + u.coin_balance, 0);
   const activeJobs = jobs.filter(j => j.status === 'active').length;
   const kycApproved = users.filter(u => u.kyc_status === 'approved').length;
+  const completedJobs = jobs.filter(j => j.status === 'completed').length;
+  const acceptedJobs = jobs.filter(j => j.status === 'accepted').length;
+  const escrowHeld = jobs.filter(j => j.status === 'accepted').reduce((s, j: any) => s + (j.escrow_amount || 0), 0);
+  const totalRevenue = jobs.filter(j => j.status === 'completed').reduce((s, j) => s + (parseInt(j.salary as any) || 0), 0);
 
   const jobsByCategory = categories_data.map(cat => ({
     name: t(`cat.${cat.id}` as any, language),
@@ -370,6 +483,10 @@ const AdminPage = () => {
               { icon: Briefcase, label: l('ວຽກ Active', 'งาน Active', 'Active Jobs'), value: activeJobs, color: 'text-green-600 bg-green-100' },
               { icon: UserCheck, label: l('KYC ຢືນຢັນ', 'KYC ยืนยัน', 'KYC Approved'), value: kycApproved, color: 'text-purple-600 bg-purple-100' },
               { icon: Coins, label: l('ຫຼຽນທັງໝົດ', 'เหรียญทั้งหมด', 'Total Coins'), value: totalCoins.toLocaleString() + '₭', color: 'text-amber-600 bg-amber-100' },
+              { icon: CheckCircle, label: l('ວຽກສຳເລັດ', 'งานเสร็จ', 'Completed'), value: completedJobs, color: 'text-emerald-600 bg-emerald-100' },
+              { icon: History, label: l('ກຳລັງເຮັດ', 'กำลังทำ', 'In Progress'), value: acceptedJobs, color: 'text-blue-600 bg-blue-100' },
+              { icon: Lock, label: l('ເງິນພັກ (Escrow)', 'เงินพัก (Escrow)', 'Escrow Held'), value: escrowHeld.toLocaleString() + '₭', color: 'text-orange-600 bg-orange-100' },
+              { icon: DollarSign, label: l('ລາຍຮັບລວມ', 'รายได้รวม', 'Revenue'), value: totalRevenue.toLocaleString() + '₭', color: 'text-pink-600 bg-pink-100' },
             ].map((stat, i) => (
               <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
                 <Card className="p-4">
@@ -407,13 +524,15 @@ const AdminPage = () => {
 
           {/* Tabs */}
           <Tabs defaultValue={pendingKyc.length > 0 ? 'kyc' : 'users'} className="space-y-4">
-            <TabsList className="grid w-full grid-cols-7">
+            <TabsList className="grid w-full grid-cols-3 md:grid-cols-9">
               <TabsTrigger value="users" className="gap-2"><Users className="h-4 w-4" /> {l('ຜູ້ໃຊ້', 'ผู้ใช้', 'Users')} ({users.length})</TabsTrigger>
               <TabsTrigger value="kyc" className="gap-2 relative">
                 <ShieldCheck className="h-4 w-4" /> KYC
                 {pendingKyc.length > 0 && <span className="bg-orange-500 text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center ml-1">{pendingKyc.length}</span>}
               </TabsTrigger>
               <TabsTrigger value="jobs" className="gap-2"><Briefcase className="h-4 w-4" /> {l('ວຽກ', 'งาน', 'Jobs')} ({jobs.length})</TabsTrigger>
+              <TabsTrigger value="services" className="gap-2"><Tag className="h-4 w-4" /> {l('ບໍລິການ', 'บริการ', 'Services')}</TabsTrigger>
+              <TabsTrigger value="broadcast" className="gap-2"><Megaphone className="h-4 w-4" /> {l('ສົ່ງຂ່າວ', 'ส่งข่าว', 'Broadcast')}</TabsTrigger>
               <TabsTrigger value="transactions" className="gap-2"><History className="h-4 w-4" /> {l('ປະຫວັດ', 'ประวัติ', 'History')}</TabsTrigger>
               <TabsTrigger value="reviews" className="gap-2"><Star className="h-4 w-4" /> {l('ລີວິວ', 'รีวิว', 'Reviews')} ({reviews.length})</TabsTrigger>
               <TabsTrigger value="admins" className="gap-2"><ShieldPlus className="h-4 w-4" /> Admin</TabsTrigger>
@@ -436,6 +555,9 @@ const AdminPage = () => {
                     <SelectItem value="rejected">❌ {l('ປະຕິເສດ', 'ปฏิเสธ', 'Rejected')}</SelectItem>
                   </SelectContent>
                 </Select>
+                <Button size="sm" variant="outline" className="gap-2" onClick={() => exportToCSV(filteredUsers, 'users-export.csv')} disabled={!filteredUsers.length}>
+                  <Download className="h-4 w-4" /> CSV
+                </Button>
               </div>
               <div className="space-y-2">
                 {filteredUsers.length === 0 ? (
@@ -468,6 +590,9 @@ const AdminPage = () => {
                               <Eye className="h-3 w-3" /> KYC
                             </Button>
                           )}
+                          <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => openEditUser(u)}>
+                            <Edit className="h-3 w-3" />
+                          </Button>
                           <Button size="sm" variant="outline" className="h-8 gap-1 text-red-600 border-red-300 hover:bg-red-50" onClick={() => handleDeleteUser(u)}>
                             <UserX className="h-3 w-3" />
                           </Button>
@@ -600,6 +725,9 @@ const AdminPage = () => {
                     return `${filtered.length} ${l('ລາຍການ', 'รายการ', 'items')}`;
                   })()}
                 </Badge>
+                <Button size="sm" variant="outline" className="gap-2" onClick={() => exportToCSV(transactions, 'transactions-export.csv')} disabled={!transactions.length}>
+                  <Download className="h-4 w-4" /> CSV
+                </Button>
               </div>
               {(() => {
                 const now = Date.now();
@@ -640,6 +768,11 @@ const AdminPage = () => {
 
             {/* Reviews moderation */}
             <TabsContent value="reviews" className="space-y-2">
+              <div className="flex justify-end">
+                <Button size="sm" variant="outline" className="gap-2" onClick={() => exportToCSV(reviews, 'reviews-export.csv')} disabled={!reviews.length}>
+                  <Download className="h-4 w-4" /> CSV
+                </Button>
+              </div>
               {reviews.length === 0 ? (
                 <Card className="p-8 text-center text-muted-foreground">{l('ບໍ່ມີລີວິວ', 'ไม่มีรีวิว', 'No reviews')}</Card>
               ) : reviews.map(r => (
@@ -733,6 +866,9 @@ const AdminPage = () => {
                 <Button size="sm" variant="outline" onClick={loadAuditLogs} className="gap-1">
                   <History className="h-3 w-3" /> {l('ໂຫຼດໃໝ່', 'รีโหลด', 'Refresh')}
                 </Button>
+                <Button size="sm" variant="outline" className="gap-1" onClick={() => exportToCSV(auditLogs, 'audit-export.csv')} disabled={!auditLogs.length}>
+                  <Download className="h-3 w-3" /> CSV
+                </Button>
                 <span className="text-xs text-muted-foreground ml-auto">
                   {auditLogs.filter(a => auditTableFilter === 'all' || a.target_table === auditTableFilter).length} {l('ລາຍການ', 'รายการ', 'entries')}
                 </span>
@@ -763,6 +899,82 @@ const AdminPage = () => {
                     );
                   })}
               </div>
+            </TabsContent>
+
+            {/* Services / Categories Tab */}
+            <TabsContent value="services" className="space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <p className="text-sm text-muted-foreground">
+                  {l('ຈັດການລາຍການບໍລິການ ແລະ ລາຄາພື້ນຖານ', 'จัดการรายการบริการและราคาเริ่มต้น', 'Manage service catalog & base prices')}
+                </p>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="gap-2" onClick={() => exportToCSV(services, 'services-export.csv')} disabled={!services.length}>
+                    <Download className="h-4 w-4" /> CSV
+                  </Button>
+                  <Button size="sm" className="gap-2" onClick={() => openServiceDialog('new')}>
+                    <Plus className="h-4 w-4" /> {l('ເພີ່ມບໍລິການ', 'เพิ่มบริการ', 'New Service')}
+                  </Button>
+                </div>
+              </div>
+              {services.length === 0 ? (
+                <Card className="p-8 text-center text-muted-foreground">{l('ຍັງບໍ່ມີບໍລິການ', 'ยังไม่มีบริการ', 'No services yet')}</Card>
+              ) : services.map(svc => (
+                <Card key={svc.id} className="p-4">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="p-2 rounded-lg bg-primary/10 text-primary"><Tag className="h-4 w-4" /></div>
+                      <div className="min-w-0">
+                        <div className="font-semibold text-sm flex items-center gap-2">
+                          {svc.name}
+                          {svc.active === false && <Badge variant="outline" className="text-[10px]">{l('ປິດ', 'ปิด', 'Off')}</Badge>}
+                        </div>
+                        <div className="text-xs text-muted-foreground">{svc.base_price.toLocaleString()}₭</div>
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => openServiceDialog(svc)}><Edit className="h-3 w-3" /></Button>
+                      <Button size="sm" variant="destructive" className="h-8 gap-1" onClick={() => handleDeleteService(svc)}><Trash2 className="h-3 w-3" /></Button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </TabsContent>
+
+            {/* Broadcast Tab */}
+            <TabsContent value="broadcast" className="space-y-3">
+              <Card className="p-6 max-w-2xl">
+                <h3 className="font-semibold text-lg mb-1 flex items-center gap-2">
+                  <Megaphone className="h-5 w-5 text-primary" />
+                  {l('ສົ່ງຂໍ້ຄວາມຫາຜູ້ໃຊ້', 'ส่งข้อความให้ผู้ใช้', 'Broadcast to Users')}
+                </h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  {l('ສົ່ງການແຈ້ງເຕືອນຫາຫຼາຍຄົນພ້ອມກັນ (ໂປຣໂມຊັນ, ປະກາດ, ແຈ້ງເຕືອນ)', 'ส่งการแจ้งเตือนถึงหลายคนพร้อมกัน', 'Send notifications to many users at once')}
+                </p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-semibold mb-1 block">{l('ກຸ່ມເປົ້າໝາຍ', 'กลุ่มเป้าหมาย', 'Target')}</label>
+                    <Select value={broadcastForm.target} onValueChange={(v: any) => setBroadcastForm({ ...broadcastForm, target: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{l('ທຸກຄົນ', 'ทุกคน', 'Everyone')} ({users.length})</SelectItem>
+                        <SelectItem value="kyc_approved">{l('ຜູ້ຢືນຢັນແລ້ວ', 'ผู้ยืนยันแล้ว', 'KYC Approved')} ({kycApproved})</SelectItem>
+                        <SelectItem value="kyc_pending">{l('ລໍຖ້າຢືນຢັນ', 'รอยืนยัน', 'KYC Pending')} ({users.filter(u => u.kyc_status === 'pending').length})</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold mb-1 block">{l('ຫົວຂໍ້', 'หัวข้อ', 'Title')}</label>
+                    <Input value={broadcastForm.title} onChange={e => setBroadcastForm({ ...broadcastForm, title: e.target.value })} placeholder={l('ຫົວຂໍ້ຂໍ້ຄວາມ...', 'หัวข้อข้อความ...', 'Message title...')} />
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold mb-1 block">{l('ເນື້ອຫາ', 'เนื้อหา', 'Body')}</label>
+                    <Textarea rows={4} value={broadcastForm.body} onChange={e => setBroadcastForm({ ...broadcastForm, body: e.target.value })} placeholder={l('ເນື້ອຫາຂໍ້ຄວາມ...', 'เนื้อหาข้อความ...', 'Message body...')} />
+                  </div>
+                  <Button onClick={handleBroadcast} className="gap-2 w-full" disabled={!broadcastForm.title.trim()}>
+                    <Megaphone className="h-4 w-4" /> {l('ສົ່ງ', 'ส่ง', 'Send Broadcast')}
+                  </Button>
+                </div>
+              </Card>
             </TabsContent>
           </Tabs>
         </div>
