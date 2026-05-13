@@ -310,6 +310,8 @@ const ProfilePage = () => {
                           <SelectItem value="admin_topup">📥 {l('ເຕີມ', 'เติม', 'Top-up')}</SelectItem>
                           <SelectItem value="admin_deduct">📤 {l('ຫັກ', 'หัก', 'Deduct')}</SelectItem>
                           <SelectItem value="job_payment">💼 {l('ຄ່າງານ', 'ค่างาน', 'Job pay')}</SelectItem>
+                          <SelectItem value="escrow_hold">🔒 {l('ພັກເງິນ', 'พักเงิน (Escrow)', 'Escrow hold')}</SelectItem>
+                          <SelectItem value="escrow_refund">↩️ {l('ຄືນເງິນ', 'คืนเงิน', 'Escrow refund')}</SelectItem>
                           <SelectItem value="transfer">🔄 {l('ໂອນ', 'โอน', 'Transfer')}</SelectItem>
                         </SelectContent>
                       </Select>

@@ -36,6 +36,7 @@ const JobDetailPage = () => {
   const [showReview, setShowReview] = useState(false);
   const [posterRating, setPosterRating] = useState<{ avg: number; count: number } | null>(null);
   const [acceptorName, setAcceptorName] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const l = (lo: string, th: string, en: string) => language === 'en' ? en : language === 'th' ? th : lo;
 
@@ -59,6 +60,17 @@ const JobDetailPage = () => {
       }
     };
     load();
+  }, [id]);
+
+  // Realtime: react to job updates (other side confirms / cancels / payout)
+  useEffect(() => {
+    if (!id) return;
+    const ch = supabase
+      .channel(`job:${id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'jobs', filter: `id=eq.${id}` },
+        (payload) => setJob(payload.new as Job))
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
   }, [id]);
 
   if (loading) return (
@@ -104,6 +116,7 @@ const JobDetailPage = () => {
   // Accept job (worker applies)
   const handleAcceptJob = async () => {
     if (!user) { navigate('/auth'); return; }
+    if (submitting) return;
     if (profile?.kyc_status !== 'approved') {
       Swal.fire({ icon: 'warning', title: l('ຕ້ອງຢືນຢັນຕົວຕົນກ່ອນ', 'ต้องยืนยันตัวตนก่อน', 'KYC Required'), text: l('ກະລຸນາຢືນຢັນ KYC ກ່ອນຮັບງານ', 'กรุณายืนยัน KYC ก่อนรับงาน', 'Please complete KYC before accepting'), confirmButtonText: l('ໄປຢືນຢັນ', 'ไปยืนยัน', 'Go Verify') }).then(r => { if (r.isConfirmed) navigate('/kyc'); });
       return;
@@ -122,19 +135,27 @@ const JobDetailPage = () => {
       confirmButtonColor: 'hsl(142, 76%, 36%)',
     });
     if (!result.isConfirmed) return;
-
-    const { data, error } = await supabase.rpc('accept_job_escrow' as any, { _job_id: job.id });
-    if (error || !(data as any)?.success) {
-      Swal.fire({ icon: 'error', title: l('ຮັບງານບໍ່ສຳເລັດ', 'รับงานไม่สำเร็จ', 'Could not accept'), text: (data as any)?.error || error?.message });
-      return;
-    }
-
-    await Swal.fire({ icon: 'success', title: l('ຮັບງານສຳເລັດ! ກຳລັງເປີດແຊັດ...', 'รับงานสำเร็จ! กำลังเปิดแชท...', 'Accepted! Opening chat...'), timer: 1500, showConfirmButton: false });
-    navigate(`/chat?job=${job.id}&to=${job.user_id}`);
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase.rpc('accept_job_escrow' as any, { _job_id: job.id });
+      if (error || !(data as any)?.success) {
+        Swal.fire({ icon: 'error', title: l('ຮັບງານບໍ່ສຳເລັດ', 'รับงานไม่สำเร็จ', 'Could not accept'), text: (data as any)?.error || error?.message });
+        return;
+      }
+      await Swal.fire({ icon: 'success', title: l('ຮັບງານສຳເລັດ! ກຳລັງເປີດແຊັດ...', 'รับงานสำเร็จ! กำลังเปิดแชท...', 'Accepted! Opening chat...'), timer: 1500, showConfirmButton: false });
+      navigate(`/chat?job=${job.id}&to=${job.user_id}`);
+    } finally { setSubmitting(false); }
   };
 
   // Either party confirms completion; payout when both confirmed
   const handleConfirmDone = async () => {
+    if (submitting) return;
+    const myAlready = (user?.id === job?.user_id && (job as any)?.employer_confirmed) ||
+                      (user?.id === job?.accepted_by && (job as any)?.worker_confirmed);
+    if (myAlready) {
+      Swal.fire({ icon: 'info', title: l('ທ່ານຍືນຢັນແລ້ວ', 'คุณยืนยันแล้ว', 'You already confirmed'), text: l('ລໍອີກຝ່າຍ', 'รออีกฝ่าย', 'Waiting for the other party'), timer: 1500, showConfirmButton: false });
+      return;
+    }
     const result = await Swal.fire({
       icon: 'question',
       title: l('ຢືນຢັນວ່າງານສຳເລັດ?', 'ยืนยันว่างานเสร็จ?', 'Confirm job done?'),
@@ -145,25 +166,30 @@ const JobDetailPage = () => {
       confirmButtonColor: 'hsl(142, 76%, 36%)',
     });
     if (!result.isConfirmed) return;
-
-    const { data, error } = await supabase.rpc('confirm_job_completion' as any, { _job_id: job.id });
-    if (error || !(data as any)?.success) {
-      Swal.fire({ icon: 'error', text: (data as any)?.error || error?.message });
-      return;
-    }
-    if ((data as any).completed) {
-      Swal.fire({ icon: 'success', title: l('ສຳເລັດ! ຈ່າຍແລ້ວ', 'สำเร็จ! จ่ายแล้ว', 'Complete! Paid'), timer: 1800, showConfirmButton: false });
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase.rpc('confirm_job_completion' as any, { _job_id: job.id });
+      if (error || !(data as any)?.success) {
+        Swal.fire({ icon: 'error', text: (data as any)?.error || error?.message });
+        return;
+      }
+      if ((data as any).completed) {
+        Swal.fire({ icon: 'success', title: l('ສຳເລັດ! ຈ່າຍແລ້ວ', 'สำเร็จ! จ่ายแล้ว', 'Complete! Paid'), timer: 1800, showConfirmButton: false });
+      } else {
+        Swal.fire({ icon: 'info', title: l('ຍືນຢັນແລ້ວ', 'ยืนยันแล้ว', 'Confirmed'), text: l('ລໍຖ້າອີກຝ່າຍຍືນຢັນ', 'รออีกฝ่ายยืนยัน', 'Waiting for the other party'), timer: 1800, showConfirmButton: false });
+      }
       const { data: fresh } = await supabase.from('jobs').select('*').eq('id', job.id).single();
       if (fresh) setJob(fresh as Job);
-    } else {
-      Swal.fire({ icon: 'info', title: l('ຍືນຢັນແລ້ວ', 'ยืนยันแล้ว', 'Confirmed'), text: l('ລໍຖ້າອີກຝ່າຍຍືນຢັນ', 'รออีกฝ่ายยืนยัน', 'Waiting for the other party'), timer: 1800, showConfirmButton: false });
-      const { data: fresh } = await supabase.from('jobs').select('*').eq('id', job.id).single();
-      if (fresh) setJob(fresh as Job);
-    }
+    } finally { setSubmitting(false); }
   };
 
   // Cancel an accepted job — refund employer, reopen
   const handleCancelAccepted = async () => {
+    if (submitting) return;
+    if (job?.status !== 'accepted') {
+      Swal.fire({ icon: 'info', title: l('ບໍ່ສາມາດຍົກເລີກ', 'ยกเลิกไม่ได้', 'Cannot cancel'), text: l('ງານບໍ່ໄດ້ຢູ່ໃນສະຖານະທີ່ຍົກເລີກໄດ້', 'งานไม่อยู่ในสถานะที่ยกเลิกได้', 'Job is not cancellable'), timer: 1600, showConfirmButton: false });
+      return;
+    }
     const result = await Swal.fire({
       icon: 'warning',
       title: l('ຍົກເລີກງານ?', 'ยกเลิกงาน?', 'Cancel job?'),
@@ -174,15 +200,17 @@ const JobDetailPage = () => {
       confirmButtonColor: 'hsl(0, 72%, 51%)',
     });
     if (!result.isConfirmed) return;
-
-    const { data, error } = await supabase.rpc('cancel_accepted_job' as any, { _job_id: job.id });
-    if (error || !(data as any)?.success) {
-      Swal.fire({ icon: 'error', text: (data as any)?.error || error?.message });
-      return;
-    }
-    Swal.fire({ icon: 'success', title: l('ຍົກເລີກສຳເລັດ', 'ยกเลิกสำเร็จ', 'Cancelled'), timer: 1500, showConfirmButton: false });
-    const { data: fresh } = await supabase.from('jobs').select('*').eq('id', job.id).single();
-    if (fresh) { setJob(fresh as Job); setAcceptorName(null); }
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase.rpc('cancel_accepted_job' as any, { _job_id: job.id });
+      if (error || !(data as any)?.success) {
+        Swal.fire({ icon: 'error', text: (data as any)?.error || error?.message });
+        return;
+      }
+      Swal.fire({ icon: 'success', title: l('ຍົກເລີກສຳເລັດ ເງິນຄືນແລ້ວ', 'ยกเลิกสำเร็จ เงินคืนแล้ว', 'Cancelled — refunded'), timer: 1700, showConfirmButton: false });
+      const { data: fresh } = await supabase.from('jobs').select('*').eq('id', job.id).single();
+      if (fresh) { setJob(fresh as Job); setAcceptorName(null); }
+    } finally { setSubmitting(false); }
   };
 
   const isOwner = user?.id === job.user_id;
@@ -190,6 +218,15 @@ const JobDetailPage = () => {
   const isAccepted = job.status === 'accepted';
   const isCompleted = job.status === 'completed';
   const isActive = job.status === 'active';
+
+  const empConf = (job as any).employer_confirmed;
+  const wrkConf = (job as any).worker_confirmed;
+  const steps = [
+    { key: 'accepted', label: l('ຮັບງານ', 'รับงาน', 'Accepted'), done: isAccepted || isCompleted },
+    { key: 'waiting',  label: l('ລໍຍືນຢັນ', 'รอยืนยัน', 'Awaiting confirm'), done: (isAccepted && (empConf || wrkConf)) || isCompleted },
+    { key: 'paying',   label: l('ກຳລັງຈ່າຍ', 'กำลังจ่าย', 'Paying out'), done: isCompleted || (isAccepted && empConf && wrkConf) },
+    { key: 'done',     label: l('ສຳເລັດ', 'สำเร็จ', 'Done'), done: isCompleted },
+  ];
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -222,6 +259,21 @@ const JobDetailPage = () => {
               <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4 flex items-center gap-2">
                 <CheckCircle className="h-5 w-5 text-green-600" />
                 <div className="font-semibold text-green-800 text-sm">{l('ງານສຳເລັດແລ້ວ ✅', 'งานเสร็จแล้ว ✅', 'Job Completed ✅')}</div>
+              </div>
+            )}
+
+            {(isAccepted || isCompleted) && (
+              <div className="mb-4 p-3 rounded-xl border bg-muted/30">
+                <div className="flex items-center justify-between gap-1">
+                  {steps.map((s, i) => (
+                    <div key={s.key} className="flex-1 flex flex-col items-center text-center">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold border-2 ${s.done ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-muted-foreground/30'}`}>
+                        {s.done ? '✓' : i + 1}
+                      </div>
+                      <div className={`text-[10px] mt-1 leading-tight ${s.done ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{s.label}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -310,7 +362,7 @@ const JobDetailPage = () => {
             <div className="flex gap-3 flex-wrap">
               {/* Accept Job button - for non-owners on active hiring jobs */}
               {user && !isOwner && isActive && job.post_type === 'hiring' && (
-                <Button size="lg" className="flex-1 gap-2 bg-green-600 hover:bg-green-700" onClick={handleAcceptJob}>
+                <Button size="lg" className="flex-1 gap-2 bg-green-600 hover:bg-green-700" onClick={handleAcceptJob} disabled={submitting}>
                   <HandCoins className="h-4 w-4" /> {l('ຮັບງານນີ້', 'รับงานนี้', 'Accept Job')}
                 </Button>
               )}
@@ -319,11 +371,16 @@ const JobDetailPage = () => {
               {(isOwner || isAcceptor) && isAccepted && (
                 <>
                   {!((isOwner && (job as any).employer_confirmed) || (isAcceptor && (job as any).worker_confirmed)) && (
-                    <Button size="lg" className="flex-1 gap-2 bg-green-600 hover:bg-green-700" onClick={handleConfirmDone}>
+                    <Button size="lg" className="flex-1 gap-2 bg-green-600 hover:bg-green-700" onClick={handleConfirmDone} disabled={submitting}>
                       <CheckCircle className="h-4 w-4" /> {l('ຍືນຢັນສຳເລັດ', 'ยืนยันเสร็จ', 'Confirm Done')}
                     </Button>
                   )}
-                  <Button size="lg" variant="destructive" className="gap-2" onClick={handleCancelAccepted}>
+                  {((isOwner && (job as any).employer_confirmed) || (isAcceptor && (job as any).worker_confirmed)) && (
+                    <div className="flex-1 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-center gap-2">
+                      ⏳ {l('ທ່ານຍືນຢັນແລ້ວ ລໍອີກຝ່າຍ', 'คุณยืนยันแล้ว รออีกฝ่าย', 'You confirmed — waiting for other party')}
+                    </div>
+                  )}
+                  <Button size="lg" variant="destructive" className="gap-2" onClick={handleCancelAccepted} disabled={submitting}>
                     <XCircle className="h-4 w-4" /> {l('ຍົກເລີກງານ', 'ยกเลิกงาน', 'Cancel Job')}
                   </Button>
                 </>
