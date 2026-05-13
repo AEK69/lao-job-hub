@@ -203,6 +203,15 @@ const JobDetailPage = () => {
   const isCompleted = job.status === 'completed';
   const isActive = job.status === 'active';
 
+  const empConf = (job as any).employer_confirmed;
+  const wrkConf = (job as any).worker_confirmed;
+  const steps = [
+    { key: 'accepted', label: l('ຮັບງານ', 'รับงาน', 'Accepted'), done: isAccepted || isCompleted },
+    { key: 'waiting',  label: l('ລໍຍືນຢັນ', 'รอยืนยัน', 'Awaiting confirm'), done: (isAccepted && (empConf || wrkConf)) || isCompleted },
+    { key: 'paying',   label: l('ກຳລັງຈ່າຍ', 'กำลังจ่าย', 'Paying out'), done: isCompleted || (isAccepted && empConf && wrkConf) },
+    { key: 'done',     label: l('ສຳເລັດ', 'สำเร็จ', 'Done'), done: isCompleted },
+  ];
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
