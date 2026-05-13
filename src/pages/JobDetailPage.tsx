@@ -246,6 +246,21 @@ const JobDetailPage = () => {
               </div>
             )}
 
+            {(isAccepted || isCompleted) && (
+              <div className="mb-4 p-3 rounded-xl border bg-muted/30">
+                <div className="flex items-center justify-between gap-1">
+                  {steps.map((s, i) => (
+                    <div key={s.key} className="flex-1 flex flex-col items-center text-center">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold border-2 ${s.done ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-muted-foreground/30'}`}>
+                        {s.done ? '✓' : i + 1}
+                      </div>
+                      <div className={`text-[10px] mt-1 leading-tight ${s.done ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="flex items-start gap-3 flex-wrap mb-4">
               {job.is_featured && <Badge className="gap-1 bg-accent text-accent-foreground"><Star className="h-3 w-3" /> {l('ແນະນຳ', 'แนะนำ', 'Featured')}</Badge>}
               {job.is_urgent && <Badge variant="destructive" className="gap-1"><Flame className="h-3 w-3" /> {t('job.urgent', language)}</Badge>}
