@@ -36,6 +36,7 @@ const JobDetailPage = () => {
   const [showReview, setShowReview] = useState(false);
   const [posterRating, setPosterRating] = useState<{ avg: number; count: number } | null>(null);
   const [acceptorName, setAcceptorName] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const l = (lo: string, th: string, en: string) => language === 'en' ? en : language === 'th' ? th : lo;
 
@@ -59,6 +60,17 @@ const JobDetailPage = () => {
       }
     };
     load();
+  }, [id]);
+
+  // Realtime: react to job updates (other side confirms / cancels / payout)
+  useEffect(() => {
+    if (!id) return;
+    const ch = supabase
+      .channel(`job:${id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'jobs', filter: `id=eq.${id}` },
+        (payload) => setJob(payload.new as Job))
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
   }, [id]);
 
   if (loading) return (
