@@ -116,6 +116,7 @@ const JobDetailPage = () => {
   // Accept job (worker applies)
   const handleAcceptJob = async () => {
     if (!user) { navigate('/auth'); return; }
+    if (submitting) return;
     if (profile?.kyc_status !== 'approved') {
       Swal.fire({ icon: 'warning', title: l('ຕ້ອງຢືນຢັນຕົວຕົນກ່ອນ', 'ต้องยืนยันตัวตนก่อน', 'KYC Required'), text: l('ກະລຸນາຢືນຢັນ KYC ກ່ອນຮັບງານ', 'กรุณายืนยัน KYC ก่อนรับงาน', 'Please complete KYC before accepting'), confirmButtonText: l('ໄປຢືນຢັນ', 'ไปยืนยัน', 'Go Verify') }).then(r => { if (r.isConfirmed) navigate('/kyc'); });
       return;
@@ -147,6 +148,13 @@ const JobDetailPage = () => {
 
   // Either party confirms completion; payout when both confirmed
   const handleConfirmDone = async () => {
+    if (submitting) return;
+    const myAlready = (user?.id === job?.user_id && (job as any)?.employer_confirmed) ||
+                      (user?.id === job?.accepted_by && (job as any)?.worker_confirmed);
+    if (myAlready) {
+      Swal.fire({ icon: 'info', title: l('ທ່ານຍືນຢັນແລ້ວ', 'คุณยืนยันแล้ว', 'You already confirmed'), text: l('ລໍອີກຝ່າຍ', 'รออีกฝ่าย', 'Waiting for the other party'), timer: 1500, showConfirmButton: false });
+      return;
+    }
     const result = await Swal.fire({
       icon: 'question',
       title: l('ຢືນຢັນວ່າງານສຳເລັດ?', 'ยืนยันว่างานเสร็จ?', 'Confirm job done?'),
@@ -176,6 +184,11 @@ const JobDetailPage = () => {
 
   // Cancel an accepted job — refund employer, reopen
   const handleCancelAccepted = async () => {
+    if (submitting) return;
+    if (job?.status !== 'accepted') {
+      Swal.fire({ icon: 'info', title: l('ບໍ່ສາມາດຍົກເລີກ', 'ยกเลิกไม่ได้', 'Cannot cancel'), text: l('ງານບໍ່ໄດ້ຢູ່ໃນສະຖານະທີ່ຍົກເລີກໄດ້', 'งานไม่อยู่ในสถานะที่ยกเลิกได้', 'Job is not cancellable'), timer: 1600, showConfirmButton: false });
+      return;
+    }
     const result = await Swal.fire({
       icon: 'warning',
       title: l('ຍົກເລີກງານ?', 'ยกเลิกงาน?', 'Cancel job?'),
