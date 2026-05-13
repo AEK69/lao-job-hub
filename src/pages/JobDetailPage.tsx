@@ -310,7 +310,7 @@ const JobDetailPage = () => {
             <div className="flex gap-3 flex-wrap">
               {/* Accept Job button - for non-owners on active hiring jobs */}
               {user && !isOwner && isActive && job.post_type === 'hiring' && (
-                <Button size="lg" className="flex-1 gap-2 bg-green-600 hover:bg-green-700" onClick={handleAcceptJob}>
+                <Button size="lg" className="flex-1 gap-2 bg-green-600 hover:bg-green-700" onClick={handleAcceptJob} disabled={submitting}>
                   <HandCoins className="h-4 w-4" /> {l('ຮັບງານນີ້', 'รับงานนี้', 'Accept Job')}
                 </Button>
               )}
@@ -319,11 +319,16 @@ const JobDetailPage = () => {
               {(isOwner || isAcceptor) && isAccepted && (
                 <>
                   {!((isOwner && (job as any).employer_confirmed) || (isAcceptor && (job as any).worker_confirmed)) && (
-                    <Button size="lg" className="flex-1 gap-2 bg-green-600 hover:bg-green-700" onClick={handleConfirmDone}>
+                    <Button size="lg" className="flex-1 gap-2 bg-green-600 hover:bg-green-700" onClick={handleConfirmDone} disabled={submitting}>
                       <CheckCircle className="h-4 w-4" /> {l('ຍືນຢັນສຳເລັດ', 'ยืนยันเสร็จ', 'Confirm Done')}
                     </Button>
                   )}
-                  <Button size="lg" variant="destructive" className="gap-2" onClick={handleCancelAccepted}>
+                  {((isOwner && (job as any).employer_confirmed) || (isAcceptor && (job as any).worker_confirmed)) && (
+                    <div className="flex-1 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-center gap-2">
+                      ⏳ {l('ທ່ານຍືນຢັນແລ້ວ ລໍອີກຝ່າຍ', 'คุณยืนยันแล้ว รออีกฝ่าย', 'You confirmed — waiting for other party')}
+                    </div>
+                  )}
+                  <Button size="lg" variant="destructive" className="gap-2" onClick={handleCancelAccepted} disabled={submitting}>
                     <XCircle className="h-4 w-4" /> {l('ຍົກເລີກງານ', 'ยกเลิกงาน', 'Cancel Job')}
                   </Button>
                 </>
