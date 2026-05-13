@@ -135,15 +135,16 @@ const JobDetailPage = () => {
       confirmButtonColor: 'hsl(142, 76%, 36%)',
     });
     if (!result.isConfirmed) return;
-
-    const { data, error } = await supabase.rpc('accept_job_escrow' as any, { _job_id: job.id });
-    if (error || !(data as any)?.success) {
-      Swal.fire({ icon: 'error', title: l('ຮັບງານບໍ່ສຳເລັດ', 'รับงานไม่สำเร็จ', 'Could not accept'), text: (data as any)?.error || error?.message });
-      return;
-    }
-
-    await Swal.fire({ icon: 'success', title: l('ຮັບງານສຳເລັດ! ກຳລັງເປີດແຊັດ...', 'รับงานสำเร็จ! กำลังเปิดแชท...', 'Accepted! Opening chat...'), timer: 1500, showConfirmButton: false });
-    navigate(`/chat?job=${job.id}&to=${job.user_id}`);
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase.rpc('accept_job_escrow' as any, { _job_id: job.id });
+      if (error || !(data as any)?.success) {
+        Swal.fire({ icon: 'error', title: l('ຮັບງານບໍ່ສຳເລັດ', 'รับงานไม่สำเร็จ', 'Could not accept'), text: (data as any)?.error || error?.message });
+        return;
+      }
+      await Swal.fire({ icon: 'success', title: l('ຮັບງານສຳເລັດ! ກຳລັງເປີດແຊັດ...', 'รับงานสำเร็จ! กำลังเปิดแชท...', 'Accepted! Opening chat...'), timer: 1500, showConfirmButton: false });
+      navigate(`/chat?job=${job.id}&to=${job.user_id}`);
+    } finally { setSubmitting(false); }
   };
 
   // Either party confirms completion; payout when both confirmed
@@ -165,21 +166,21 @@ const JobDetailPage = () => {
       confirmButtonColor: 'hsl(142, 76%, 36%)',
     });
     if (!result.isConfirmed) return;
-
-    const { data, error } = await supabase.rpc('confirm_job_completion' as any, { _job_id: job.id });
-    if (error || !(data as any)?.success) {
-      Swal.fire({ icon: 'error', text: (data as any)?.error || error?.message });
-      return;
-    }
-    if ((data as any).completed) {
-      Swal.fire({ icon: 'success', title: l('ສຳເລັດ! ຈ່າຍແລ້ວ', 'สำเร็จ! จ่ายแล้ว', 'Complete! Paid'), timer: 1800, showConfirmButton: false });
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase.rpc('confirm_job_completion' as any, { _job_id: job.id });
+      if (error || !(data as any)?.success) {
+        Swal.fire({ icon: 'error', text: (data as any)?.error || error?.message });
+        return;
+      }
+      if ((data as any).completed) {
+        Swal.fire({ icon: 'success', title: l('ສຳເລັດ! ຈ່າຍແລ້ວ', 'สำเร็จ! จ่ายแล้ว', 'Complete! Paid'), timer: 1800, showConfirmButton: false });
+      } else {
+        Swal.fire({ icon: 'info', title: l('ຍືນຢັນແລ້ວ', 'ยืนยันแล้ว', 'Confirmed'), text: l('ລໍຖ້າອີກຝ່າຍຍືນຢັນ', 'รออีกฝ่ายยืนยัน', 'Waiting for the other party'), timer: 1800, showConfirmButton: false });
+      }
       const { data: fresh } = await supabase.from('jobs').select('*').eq('id', job.id).single();
       if (fresh) setJob(fresh as Job);
-    } else {
-      Swal.fire({ icon: 'info', title: l('ຍືນຢັນແລ້ວ', 'ยืนยันแล้ว', 'Confirmed'), text: l('ລໍຖ້າອີກຝ່າຍຍືນຢັນ', 'รออีกฝ่ายยืนยัน', 'Waiting for the other party'), timer: 1800, showConfirmButton: false });
-      const { data: fresh } = await supabase.from('jobs').select('*').eq('id', job.id).single();
-      if (fresh) setJob(fresh as Job);
-    }
+    } finally { setSubmitting(false); }
   };
 
   // Cancel an accepted job — refund employer, reopen
@@ -199,15 +200,17 @@ const JobDetailPage = () => {
       confirmButtonColor: 'hsl(0, 72%, 51%)',
     });
     if (!result.isConfirmed) return;
-
-    const { data, error } = await supabase.rpc('cancel_accepted_job' as any, { _job_id: job.id });
-    if (error || !(data as any)?.success) {
-      Swal.fire({ icon: 'error', text: (data as any)?.error || error?.message });
-      return;
-    }
-    Swal.fire({ icon: 'success', title: l('ຍົກເລີກສຳເລັດ', 'ยกเลิกสำเร็จ', 'Cancelled'), timer: 1500, showConfirmButton: false });
-    const { data: fresh } = await supabase.from('jobs').select('*').eq('id', job.id).single();
-    if (fresh) { setJob(fresh as Job); setAcceptorName(null); }
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase.rpc('cancel_accepted_job' as any, { _job_id: job.id });
+      if (error || !(data as any)?.success) {
+        Swal.fire({ icon: 'error', text: (data as any)?.error || error?.message });
+        return;
+      }
+      Swal.fire({ icon: 'success', title: l('ຍົກເລີກສຳເລັດ ເງິນຄືນແລ້ວ', 'ยกเลิกสำเร็จ เงินคืนแล้ว', 'Cancelled — refunded'), timer: 1700, showConfirmButton: false });
+      const { data: fresh } = await supabase.from('jobs').select('*').eq('id', job.id).single();
+      if (fresh) { setJob(fresh as Job); setAcceptorName(null); }
+    } finally { setSubmitting(false); }
   };
 
   const isOwner = user?.id === job.user_id;
