@@ -105,6 +105,10 @@ export function NotificationBell() {
       case 'kyc_approved': return '🎉';
       case 'kyc_rejected': return '❌';
       case 'coins_received': return '💰';
+      case 'coins_deducted': return '➖';
+      case 'job_cancelled': return '🚫';
+      case 'confirmation_pending': return '⏳';
+      case 'admin_granted': return '🛡️';
       default: return '🔔';
     }
   };
