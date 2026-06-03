@@ -157,11 +157,14 @@ export function DatabaseExplorer() {
                 <tbody>
                   {sample.map((row, i) => (
                     <tr key={i} className="border-t">
-                      {Object.values(row).map((v, j) => (
-                        <td key={j} className="px-2 py-1.5 max-w-[200px] truncate" title={v == null ? '' : (typeof v === 'object' ? JSON.stringify(v) : String(v))}>
-                          {v == null ? <span className="text-muted-foreground">null</span> : typeof v === 'object' ? <code className="text-[10px]">{JSON.stringify(v).slice(0, 60)}</code> : String(v).slice(0, 80)}
-                        </td>
-                      ))}
+                      {Object.values(row).map((v, j) => {
+                        const str = v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v);
+                        return (
+                          <td key={j} className="px-2 py-1.5 max-w-[200px] truncate" title={str}>
+                            {v == null ? <span className="text-muted-foreground">null</span> : typeof v === 'object' ? <code className="text-[10px]">{str.slice(0, 60)}</code> : str.slice(0, 80)}
+                          </td>
+                        );
+                      })}
                     </tr>
                   ))}
                 </tbody>

@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Bot, Send, Loader2, Sparkles, User } from 'lucide-react';
+import { Bot, Send, Loader as Loader2, Sparkles, User } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -71,7 +71,7 @@ export function AdminAIAssistant() {
         while ((idx = buffer.indexOf('\n')) !== -1) {
           let line = buffer.slice(0, idx);
           buffer = buffer.slice(idx + 1);
-          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (line?.endsWith?.('\r')) line = line.slice(0, -1);
           if (!line.startsWith('data: ')) continue;
           const json = line.slice(6).trim();
           if (json === '[DONE]') { done = true; break; }
