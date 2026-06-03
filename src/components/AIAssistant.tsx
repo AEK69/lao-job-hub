@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Sparkles, Send, Loader as Loader2, Copy, Check, List, MessageSquare, FileText, MapPin, X } from 'lucide-react';
+import { Sparkles, Send, Loader2, Copy, Check, List, MessageSquare, FileText, MapPin, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -110,11 +110,6 @@ export function AIAssistant() {
   const navigate = useNavigate();
   const { language } = useAppStore();
   const { user, session } = useAuth();
-
-  if (location.pathname.startsWith('/admin')) return null;
-  // Hide AI assistant from unauthenticated visitors — prevents abuse of paid credits
-  if (!user) return null;
-
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -122,6 +117,10 @@ export function AIAssistant() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  if (location.pathname.startsWith('/admin')) return null;
+  // Hide AI assistant from unauthenticated visitors — prevents abuse of paid credits
+  if (!user) return null;
 
   useEffect(() => {
     if (open && messages.length === 0) {
