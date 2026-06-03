@@ -15,7 +15,7 @@ import {
   Trash2, Briefcase, Users, Coins, Search, ShieldCheck, Eye, CheckCircle, XCircle,
   Minus, Plus, BarChart3, LogOut, Home, Settings, Bell,
   UserCheck, Download, Lock, Unlock, Edit, History, UserX, Star, EyeOff, ShieldPlus, FileText,
-  Tag, Megaphone, Database, DollarSign
+  Tag, Megaphone, Database, DollarSign, Workflow, Bot
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -24,6 +24,9 @@ import { Navigate, Link } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import Swal from 'sweetalert2';
 import { formatCoins } from '@/lib/constants';
+import { ContextDiagram } from '@/components/admin/ContextDiagram';
+import { DatabaseExplorer } from '@/components/admin/DatabaseExplorer';
+import { AdminAIAssistant } from '@/components/admin/AdminAIAssistant';
 
 interface UserProfile {
   id: string;
@@ -524,7 +527,7 @@ const AdminPage = () => {
 
           {/* Tabs */}
           <Tabs defaultValue={pendingKyc.length > 0 ? 'kyc' : 'users'} className="space-y-4">
-            <TabsList className="grid w-full grid-cols-3 md:grid-cols-9">
+            <TabsList className="grid w-full grid-cols-3 md:grid-cols-12">
               <TabsTrigger value="users" className="gap-2"><Users className="h-4 w-4" /> {l('ຜູ້ໃຊ້', 'ผู้ใช้', 'Users')} ({users.length})</TabsTrigger>
               <TabsTrigger value="kyc" className="gap-2 relative">
                 <ShieldCheck className="h-4 w-4" /> KYC
@@ -537,6 +540,9 @@ const AdminPage = () => {
               <TabsTrigger value="reviews" className="gap-2"><Star className="h-4 w-4" /> {l('ລີວິວ', 'รีวิว', 'Reviews')} ({reviews.length})</TabsTrigger>
               <TabsTrigger value="admins" className="gap-2"><ShieldPlus className="h-4 w-4" /> Admin</TabsTrigger>
               <TabsTrigger value="audit" className="gap-2"><FileText className="h-4 w-4" /> {l('ບັນທຶກ', 'บันทึก', 'Audit')}</TabsTrigger>
+              <TabsTrigger value="diagram" className="gap-2"><Workflow className="h-4 w-4" /> {l('ແຜນຜັງ', 'ผังข้อมูล', 'Diagram')}</TabsTrigger>
+              <TabsTrigger value="db" className="gap-2"><Database className="h-4 w-4" /> DB</TabsTrigger>
+              <TabsTrigger value="ai" className="gap-2"><Bot className="h-4 w-4" /> AI</TabsTrigger>
             </TabsList>
 
             {/* Users Tab */}
@@ -975,6 +981,18 @@ const AdminPage = () => {
                   </Button>
                 </div>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="diagram" className="space-y-3">
+              <ContextDiagram />
+            </TabsContent>
+
+            <TabsContent value="db" className="space-y-3">
+              <DatabaseExplorer />
+            </TabsContent>
+
+            <TabsContent value="ai" className="space-y-3">
+              <AdminAIAssistant />
             </TabsContent>
           </Tabs>
         </div>
