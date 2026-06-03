@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/lib/store';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 type Mode = 'chat' | 'summary' | 'template';
 type Msg = { role: 'user' | 'assistant'; content: string; mode?: Mode };
@@ -68,20 +70,6 @@ const SHORTCUTS = [
   },
 ] as const;
 
-function buildSystem(mode: Mode, lang: 'lo' | 'th' | 'en') {
-  if (mode === 'summary') {
-    return `Reply ONLY in ${lang}. Output 4-6 SHORT bullet points starting with "- ". Each bullet MUST be one short sentence (max 14 words). NO intro, NO outro, NO headings. Just bullets.`;
-  }
-  if (mode === 'template') {
-    return `Reply ONLY in ${lang}. Output a job post template as a JSON code block ONLY (no extra text). Format:
-\`\`\`json
-{"title":"...","description":"...","price":"...LAK","location":"..."}
-\`\`\`
-Title <60 chars. Description 2-4 sentences. Price in LAK with ₭. Location a real Lao place.`;
-  }
-  return `You are the AI assistant for ວຽກດ່ວນ (workday33), a Lao quick-job platform. Reply in ${lang}. Be friendly, concise, use markdown bullets/bold, light emojis. Prices in LAK (₭).`;
-}
-
 function parseBullets(text: string): string[] {
   return text.split('\n').map(l => l.replace(/^[-*•]\s*/, '').trim()).filter(Boolean).slice(0, 8);
 }
@@ -121,6 +109,7 @@ export function AIAssistant() {
   const location = useLocation();
   const navigate = useNavigate();
   const { language } = useAppStore();
+  const { user, session } = useAuth();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -130,6 +119,8 @@ export function AIAssistant() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   if (location.pathname.startsWith('/admin')) return null;
+  // Hide AI assistant from unauthenticated visitors — prevents abuse of paid credits
+  if (!user) return null;
 
   useEffect(() => {
     if (open && messages.length === 0) {
@@ -148,14 +139,22 @@ export function AIAssistant() {
     setMessages([...next, { role: 'assistant', content: '', mode: useMode }]);
     setBusy(true);
     try {
+      const accessToken = session?.access_token
+        || (await supabase.auth.getSession()).data.session?.access_token;
+      if (!accessToken) throw new Error('Not authenticated');
       const res = await fetch(FUNCTION_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
         body: JSON.stringify({
-          system: buildSystem(useMode, language),
+          mode: useMode,
+          lang: language,
           messages: next.filter(m => m.content).map(m => ({ role: m.role, content: m.content })),
         }),
       });
+      if (res.status === 401) throw new Error(language === 'lo' ? 'ກະລຸນາເຂົ້າສູ່ລະບົບ' : 'Please sign in');
       if (res.status === 429) throw new Error(language === 'lo' ? 'ໃຊ້ຫຼາຍເກີນໄປ ລອງໃໝ່' : 'Rate limited');
       if (res.status === 402) throw new Error(language === 'lo' ? 'ຫຼຽນ AI ໝົດ' : 'AI credits exhausted');
       if (!res.ok || !res.body) throw new Error(`Error ${res.status}`);
