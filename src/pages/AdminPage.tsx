@@ -15,7 +15,7 @@ import {
   Trash2, Briefcase, Users, Coins, Search, ShieldCheck, Eye, CheckCircle, XCircle,
   Minus, Plus, BarChart3, LogOut, Home, Settings, Bell,
   UserCheck, Download, Lock, Unlock, Edit, History, UserX, Star, EyeOff, ShieldPlus, FileText,
-  Tag, Megaphone, Database, DollarSign
+  Tag, Megaphone, Database, DollarSign, Workflow, Bot
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -24,6 +24,9 @@ import { Navigate, Link } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import Swal from 'sweetalert2';
 import { formatCoins } from '@/lib/constants';
+import { ContextDiagram } from '@/components/admin/ContextDiagram';
+import { DatabaseExplorer } from '@/components/admin/DatabaseExplorer';
+import { AdminAIAssistant } from '@/components/admin/AdminAIAssistant';
 
 interface UserProfile {
   id: string;
