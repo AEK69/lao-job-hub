@@ -982,6 +982,18 @@ const AdminPage = () => {
                 </div>
               </Card>
             </TabsContent>
+
+            <TabsContent value="diagram" className="space-y-3">
+              <ContextDiagram />
+            </TabsContent>
+
+            <TabsContent value="db" className="space-y-3">
+              <DatabaseExplorer />
+            </TabsContent>
+
+            <TabsContent value="ai" className="space-y-3">
+              <AdminAIAssistant />
+            </TabsContent>
           </Tabs>
         </div>
       </main>
