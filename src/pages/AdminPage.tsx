@@ -988,15 +988,15 @@ const AdminPage = () => {
             </TabsContent>
 
             <TabsContent value="diagram" className="space-y-3">
-              <ContextDiagram />
+              <Suspense fallback={<AdminLazyFallback />}><ContextDiagram /></Suspense>
             </TabsContent>
 
             <TabsContent value="db" className="space-y-3">
-              <DatabaseExplorer />
+              <Suspense fallback={<AdminLazyFallback />}><DatabaseExplorer /></Suspense>
             </TabsContent>
 
             <TabsContent value="ai" className="space-y-3">
-              <AdminAIAssistant />
+              <Suspense fallback={<AdminLazyFallback />}><AdminAIAssistant /></Suspense>
             </TabsContent>
           </Tabs>
         </div>
