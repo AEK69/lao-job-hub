@@ -446,7 +446,10 @@ const AdminPage = () => {
     { name: l('ປະຕິເສດ', 'ปฏิเสธ', 'Rejected'), value: users.filter(u => u.kyc_status === 'rejected').length },
   ].filter(d => d.value > 0);
 
-  const getUserName = (userId: string) => users.find(u => u.user_id === userId)?.display_name || userId.slice(0, 8);
+  const getUserName = (userId: string | null | undefined) => {
+    if (!userId) return '—';
+    return users.find(u => u.user_id === userId)?.display_name || userId.slice(0, 8);
+  };
 
   return (
     <div className="min-h-screen flex bg-muted/30">
