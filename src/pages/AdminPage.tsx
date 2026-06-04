@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useAppStore, Job } from '@/lib/store';
 import { useAuth } from '@/hooks/useAuth';
 import { t, districts, categories as categories_data } from '@/lib/i18n';
@@ -24,9 +24,10 @@ import { Navigate, Link } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import Swal from 'sweetalert2';
 import { formatCoins } from '@/lib/constants';
-import { ContextDiagram } from '@/components/admin/ContextDiagram';
-import { DatabaseExplorer } from '@/components/admin/DatabaseExplorer';
-import { AdminAIAssistant } from '@/components/admin/AdminAIAssistant';
+const ContextDiagram = lazy(() => import('@/components/admin/ContextDiagram').then(m => ({ default: m.ContextDiagram })));
+const DatabaseExplorer = lazy(() => import('@/components/admin/DatabaseExplorer').then(m => ({ default: m.DatabaseExplorer })));
+const AdminAIAssistant = lazy(() => import('@/components/admin/AdminAIAssistant').then(m => ({ default: m.AdminAIAssistant })));
+const AdminLazyFallback = () => <div className="p-8 text-center text-sm text-muted-foreground">กำลังโหลด...</div>;
 
 interface UserProfile {
   id: string;
@@ -446,7 +447,10 @@ const AdminPage = () => {
     { name: l('ປະຕິເສດ', 'ปฏิเสธ', 'Rejected'), value: users.filter(u => u.kyc_status === 'rejected').length },
   ].filter(d => d.value > 0);
 
-  const getUserName = (userId: string) => users.find(u => u.user_id === userId)?.display_name || userId.slice(0, 8);
+  const getUserName = (userId: string | null | undefined) => {
+    if (!userId) return '—';
+    return users.find(u => u.user_id === userId)?.display_name || userId.slice(0, 8);
+  };
 
   return (
     <div className="min-h-screen flex bg-muted/30">
@@ -984,15 +988,15 @@ const AdminPage = () => {
             </TabsContent>
 
             <TabsContent value="diagram" className="space-y-3">
-              <ContextDiagram />
+              <Suspense fallback={<AdminLazyFallback />}><ContextDiagram /></Suspense>
             </TabsContent>
 
             <TabsContent value="db" className="space-y-3">
-              <DatabaseExplorer />
+              <Suspense fallback={<AdminLazyFallback />}><DatabaseExplorer /></Suspense>
             </TabsContent>
 
             <TabsContent value="ai" className="space-y-3">
-              <AdminAIAssistant />
+              <Suspense fallback={<AdminLazyFallback />}><AdminAIAssistant /></Suspense>
             </TabsContent>
           </Tabs>
         </div>
