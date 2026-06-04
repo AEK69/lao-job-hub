@@ -49,6 +49,10 @@ const ProfilePage = () => {
   const [avgRating, setAvgRating] = useState(0);
   const [txTypeFilter, setTxTypeFilter] = useState<string>('all');
   const [txDateFilter, setTxDateFilter] = useState<string>('all');
+  const [txPage, setTxPage] = useState(0);
+  const [txHasMore, setTxHasMore] = useState(false);
+  const [txLoading, setTxLoading] = useState(false);
+  const TX_PAGE_SIZE = 20;
 
   const l = (lo: string, th: string, en: string) => language === 'en' ? en : language === 'th' ? th : lo;
 
@@ -76,13 +80,47 @@ const ProfilePage = () => {
   };
 
   const loadTransactions = async () => {
-    const { data } = await supabase
+    setTxLoading(true);
+    const from = 0;
+    const to = TX_PAGE_SIZE - 1;
+    let q = supabase
       .from('coin_transactions')
       .select('*')
       .or(`from_user_id.eq.${user!.id},to_user_id.eq.${user!.id}`)
-      .order('created_at', { ascending: false });
-    setTransactions((data as CoinTransaction[]) || []);
+      .order('created_at', { ascending: false })
+      .range(from, to);
+    if (txTypeFilter !== 'all') q = q.eq('type', txTypeFilter);
+    const { data } = await q;
+    const rows = (data as CoinTransaction[]) || [];
+    setTransactions(rows);
+    setTxPage(0);
+    setTxHasMore(rows.length === TX_PAGE_SIZE);
+    setTxLoading(false);
   };
+
+  const loadMoreTransactions = async () => {
+    if (txLoading || !txHasMore) return;
+    setTxLoading(true);
+    const next = txPage + 1;
+    const from = next * TX_PAGE_SIZE;
+    const to = from + TX_PAGE_SIZE - 1;
+    let q = supabase
+      .from('coin_transactions')
+      .select('*')
+      .or(`from_user_id.eq.${user!.id},to_user_id.eq.${user!.id}`)
+      .order('created_at', { ascending: false })
+      .range(from, to);
+    if (txTypeFilter !== 'all') q = q.eq('type', txTypeFilter);
+    const { data } = await q;
+    const rows = (data as CoinTransaction[]) || [];
+    setTransactions(prev => [...prev, ...rows]);
+    setTxPage(next);
+    setTxHasMore(rows.length === TX_PAGE_SIZE);
+    setTxLoading(false);
+  };
+
+  // Refresh when type filter changes (server-side filter)
+  useEffect(() => { if (user) loadTransactions(); }, [txTypeFilter]);
 
   const loadReviews = async () => {
     const { data } = await supabase.from('reviews').select('*').eq('reviewed_id', user!.id).eq('status', 'approved').order('created_at', { ascending: false });
