@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useAppStore, Job } from '@/lib/store';
 import { useAuth } from '@/hooks/useAuth';
 import { t, districts, categories as categories_data } from '@/lib/i18n';
@@ -24,9 +24,10 @@ import { Navigate, Link } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import Swal from 'sweetalert2';
 import { formatCoins } from '@/lib/constants';
-import { ContextDiagram } from '@/components/admin/ContextDiagram';
-import { DatabaseExplorer } from '@/components/admin/DatabaseExplorer';
-import { AdminAIAssistant } from '@/components/admin/AdminAIAssistant';
+const ContextDiagram = lazy(() => import('@/components/admin/ContextDiagram').then(m => ({ default: m.ContextDiagram })));
+const DatabaseExplorer = lazy(() => import('@/components/admin/DatabaseExplorer').then(m => ({ default: m.DatabaseExplorer })));
+const AdminAIAssistant = lazy(() => import('@/components/admin/AdminAIAssistant').then(m => ({ default: m.AdminAIAssistant })));
+const AdminLazyFallback = () => <div className="p-8 text-center text-sm text-muted-foreground">กำลังโหลด...</div>;
 
 interface UserProfile {
   id: string;
