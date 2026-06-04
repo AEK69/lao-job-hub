@@ -391,6 +391,13 @@ const ProfilePage = () => {
                   </div>
                 ))}
                     </Card>
+                    {txHasMore && (
+                      <div className="flex justify-center pt-2">
+                        <Button variant="outline" size="sm" onClick={loadMoreTransactions} disabled={txLoading}>
+                          {txLoading ? l('ກຳລັງໂຫລດ...', 'กำลังโหลด...', 'Loading...') : l('ໂຫລດເພີ່ມ', 'โหลดเพิ่ม', 'Load more')}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
