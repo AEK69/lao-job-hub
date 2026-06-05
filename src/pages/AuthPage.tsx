@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { lovable } from '@/integrations/lovable';
 import { useAppStore } from '@/lib/store';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
@@ -80,6 +81,23 @@ const AuthPage = () => {
       }
     } catch (err: any) {
       toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleAuth = async () => {
+    setLoading(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth('google', {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) throw result.error;
+      if (result.redirected) return;
+      toast.success(l('ຍິນດີຕ້ອນຮັບ!', 'ยินดีต้อนรับ!', 'Welcome!'));
+      navigate('/');
+    } catch (err: any) {
+      toast.error(err.message || 'Google sign-in failed');
     } finally {
       setLoading(false);
     }
