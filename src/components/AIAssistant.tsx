@@ -118,10 +118,6 @@ export function AIAssistant() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  if (location.pathname.startsWith('/admin')) return null;
-  // Hide AI assistant from unauthenticated visitors — prevents abuse of paid credits
-  if (!user) return null;
-
   useEffect(() => {
     if (open && messages.length === 0) {
       setMessages([{ role: 'assistant', content: T.greeting[language] }]);
@@ -132,6 +128,10 @@ export function AIAssistant() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages]);
+
+  // Hooks MUST run unconditionally — gate rendering AFTER all hooks
+  if (location.pathname.startsWith('/admin')) return null;
+  if (!user) return null;
 
   const sendText = async (text: string, useMode: Mode = mode) => {
     if (!text.trim() || busy) return;
