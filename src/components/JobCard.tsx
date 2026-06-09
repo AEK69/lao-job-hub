@@ -18,7 +18,7 @@ export function JobCard({ job, index = 0 }: { job: Job; index?: number }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
     >
-      <Card className={`p-4 hover:shadow-lg transition-shadow border-l-4 ${job.is_featured ? 'border-l-accent bg-accent/5' : 'border-l-primary/50 hover:border-l-primary'}`}>
+      <Card className={`p-4 hover-lift border-l-4 shadow-soft ${job.is_featured ? 'border-l-accent bg-gradient-to-br from-accent/5 to-transparent' : 'border-l-primary/40 hover:border-l-primary'}`}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">

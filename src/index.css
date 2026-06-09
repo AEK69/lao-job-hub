@@ -7,26 +7,29 @@
 @layer base {
   :root {
     --background: 0 0% 99%;
-    --foreground: 240 10% 15%;
+    --foreground: 330 25% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 15%;
+    --card-foreground: 330 25% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 15%;
+    --popover-foreground: 330 25% 12%;
 
-    --primary: 330 85% 55%;
+    --primary: 330 82% 56%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 330 85% 95%;
+    --primary-light: 330 90% 96%;
+    --primary-glow: 320 90% 70%;
+    --primary-deep: 335 75% 42%;
 
     --secondary: 210 40% 96%;
-    --secondary-foreground: 240 10% 15%;
+    --secondary-foreground: 330 25% 12%;
 
     --muted: 210 20% 96%;
     --muted-foreground: 215 16% 47%;
 
-    --accent: 35 95% 55%;
+    --accent: 28 95% 58%;
     --accent-foreground: 0 0% 100%;
+    --accent-glow: 18 95% 65%;
 
     --success: 145 65% 42%;
     --success-foreground: 0 0% 100%;
@@ -34,11 +37,21 @@
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 330 85% 55%;
+    --border: 330 25% 92%;
+    --input: 330 25% 92%;
+    --ring: 330 82% 56%;
 
     --radius: 0.75rem;
+
+    /* Premium gradients & shadows */
+    --gradient-primary: linear-gradient(135deg, hsl(335 80% 50%), hsl(320 88% 62%));
+    --gradient-warm: linear-gradient(135deg, hsl(330 82% 56%), hsl(18 95% 62%));
+    --gradient-soft: linear-gradient(180deg, hsl(330 90% 98%), hsl(28 90% 97%));
+    --gradient-hero: radial-gradient(ellipse at top, hsl(330 90% 96%) 0%, hsl(0 0% 99%) 60%);
+    --shadow-soft: 0 1px 2px hsl(330 40% 50% / 0.04), 0 2px 8px hsl(330 40% 50% / 0.06);
+    --shadow-glow: 0 8px 32px -8px hsl(330 82% 56% / 0.35);
+    --shadow-premium: 0 10px 40px -12px hsl(330 82% 56% / 0.25), 0 4px 12px -4px hsl(335 75% 42% / 0.1);
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     --font-lao: 'Noto Sans Lao', sans-serif;
     --font-thai: 'Noto Sans Thai', sans-serif;
@@ -46,12 +59,12 @@
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 330 85% 55%;
+    --sidebar-primary: 330 82% 56%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 330 85% 95%;
+    --sidebar-accent: 330 90% 96%;
     --sidebar-accent-foreground: 330 85% 35%;
-    --sidebar-border: 214 32% 91%;
-    --sidebar-ring: 330 85% 55%;
+    --sidebar-border: 330 25% 92%;
+    --sidebar-ring: 330 82% 56%;
   }
 }
 
@@ -63,6 +76,13 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-lao);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3, h4 {
+    letter-spacing: -0.02em;
   }
 }
 
@@ -76,6 +96,29 @@
   .font-en {
     font-family: var(--font-en);
   }
+  .bg-gradient-primary { background-image: var(--gradient-primary); }
+  .bg-gradient-warm { background-image: var(--gradient-warm); }
+  .bg-gradient-soft { background-image: var(--gradient-soft); }
+  .bg-gradient-hero { background-image: var(--gradient-hero); }
+  .shadow-soft { box-shadow: var(--shadow-soft); }
+  .shadow-glow { box-shadow: var(--shadow-glow); }
+  .shadow-premium { box-shadow: var(--shadow-premium); }
+  .text-gradient-primary {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+  .hover-lift {
+    transition: var(--transition-smooth);
+  }
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-premium);
+  }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 }
 
 .leaflet-container {

@@ -67,22 +67,27 @@ const Index = () => {
       <Header />
 
       {/* Hero */}
-      <section className="bg-gradient-to-br from-primary/10 via-primary-light to-accent/10 py-16 md:py-24">
-        <div className="container text-center">
+      <section className="relative bg-gradient-hero py-20 md:py-32 overflow-hidden">
+        {/* Decorative blurs */}
+        <div className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full bg-primary/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 -right-24 h-80 w-80 rounded-full bg-accent/20 blur-3xl" />
+        <div className="container text-center relative">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-            <motion.span className="text-5xl mb-4 inline-block" animate={{ y: [0, -10, 0] }} transition={{ repeat: Infinity, duration: 2 }}>
+            <motion.span className="text-6xl mb-6 inline-block drop-shadow-md" animate={{ y: [0, -10, 0] }} transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }}>
               🎯
             </motion.span>
-            <h1 className="text-3xl md:text-5xl font-bold mb-4">{t('hero.title', language)}</h1>
-            <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">{t('hero.subtitle', language)}</p>
+            <h1 className="text-4xl md:text-6xl font-bold mb-5 tracking-tight">
+              <span className="text-gradient-primary">{t('hero.title', language)}</span>
+            </h1>
+            <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">{t('hero.subtitle', language)}</p>
             <div className="flex gap-3 justify-center flex-wrap">
               <Link to="/jobs">
-                <Button size="lg" className="gap-2 text-base">
+                <Button size="lg" className="gap-2 text-base shadow-glow hover-lift bg-gradient-primary border-0">
                   <Search className="h-5 w-5" /> {t('hero.findJob', language)}
                 </Button>
               </Link>
               <Link to="/post">
-                <Button size="lg" variant="outline" className="gap-2 text-base border-primary text-primary hover:bg-primary hover:text-primary-foreground">
+                <Button size="lg" variant="outline" className="gap-2 text-base border-2 border-primary/30 text-primary backdrop-blur-sm bg-card/60 hover:bg-primary hover:text-primary-foreground hover-lift">
                   ✍️ {t('hero.postJob', language)}
                 </Button>
               </Link>
