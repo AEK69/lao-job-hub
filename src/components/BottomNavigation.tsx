@@ -12,9 +12,6 @@ export function BottomNavigation() {
   const { user } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Hide bottom nav entirely on admin routes — admin area is fully isolated
-  if (location.pathname.startsWith('/admin')) return null;
-
   useEffect(() => {
     if (!user) return;
     const loadUnread = async () => {
@@ -30,6 +27,9 @@ export function BottomNavigation() {
     const interval = setInterval(loadUnread, 15000);
     return () => clearInterval(interval);
   }, [user]);
+
+  // Hide bottom nav entirely on admin routes — admin area is fully isolated
+  if (location.pathname.startsWith('/admin')) return null;
 
   const links = [
     { to: '/', icon: Home, label: t('nav.home', language) },

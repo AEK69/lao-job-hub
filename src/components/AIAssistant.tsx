@@ -207,7 +207,7 @@ export function AIAssistant() {
     sendText(s.prompt[language], s.mode);
   };
 
-  const useTemplate = (tpl: any) => {
+  const applyTemplate = (tpl: any) => {
     try {
       sessionStorage.setItem('ai_job_template', JSON.stringify(tpl));
       navigate('/post');
@@ -286,7 +286,7 @@ export function AIAssistant() {
             </div>
             <div className="flex gap-2 pt-1">
               <CopyBtn text={fullText} label={T.copy[language]} copied={T.copied[language]} />
-              <Button size="sm" onClick={() => useTemplate(tpl)} className="h-7 text-xs">
+              <Button size="sm" onClick={() => applyTemplate(tpl)} className="h-7 text-xs">
                 {T.fillForm[language]}
               </Button>
             </div>
