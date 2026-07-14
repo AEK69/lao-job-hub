@@ -76,9 +76,9 @@ const ChatPage = () => {
 
     const enriched = await Promise.all(convs.map(async (conv) => {
       const otherId = conv.participant_1 === user.id ? conv.participant_2 : conv.participant_1;
-      const { data: p } = await supabase.from('profiles').select('display_name, avatar_url').eq('user_id', otherId).single();
+      const { data: p } = await supabase.from('public_profiles' as any).select('display_name, avatar_url').eq('user_id', otherId).single() as any;
       let jobTitle = '';
-      if (conv.job_id) { const { data: job } = await supabase.from('jobs').select('title').eq('id', conv.job_id).single(); jobTitle = job?.title || ''; }
+      if (conv.job_id) { const { data: job } = await supabase.from('jobs_public' as any).select('title').eq('id', conv.job_id).single() as any; jobTitle = job?.title || ''; }
       const { data: lastMsg } = await supabase.from('messages').select('content').eq('conversation_id', conv.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
       const { count } = await supabase.from('messages').select('*', { count: 'exact', head: true }).eq('conversation_id', conv.id).eq('is_read', false).neq('sender_id', user.id);
       return { ...conv, other_profile: p ? { display_name: p.display_name, avatar_url: p.avatar_url } : undefined, job_title: jobTitle, last_message: lastMsg?.content, unread_count: count || 0 };

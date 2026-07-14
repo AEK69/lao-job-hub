@@ -30,13 +30,13 @@ const Index = () => {
       setLoading(true);
       try {
         const { data, count } = await supabase
-          .from('jobs')
+          .from('jobs_public' as any)
           .select('*', { count: 'exact' })
           .eq('status', 'active')
           .order('is_featured', { ascending: false })
           .order('created_at', { ascending: false })
           .limit(PAGINATION.JOBS_HOME_PREVIEW);
-        setJobs((data as Job[]) || []);
+        setJobs(((data as unknown) as Job[]) || []);
         setTotalJobs(count || 0);
       } catch (error) {
         console.error('Error loading jobs:', error);
