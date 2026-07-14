@@ -49,7 +49,7 @@ const JobsPage = () => {
       setLoading(true);
       try {
         let query = supabase
-          .from('jobs')
+          .from('jobs_public' as any)
           .select('*')
           .eq('status', 'active')
           .order('is_urgent', { ascending: false })
@@ -64,7 +64,7 @@ const JobsPage = () => {
         if (dateTo) query = query.lte('work_date', dateTo);
 
         const { data } = await query;
-        let result = (data as Job[]) || [];
+        let result = ((data as unknown) as Job[]) || [];
 
         // Client-side salary filter
         if (salaryMin) result = result.filter(j => Number(j.salary) >= Number(salaryMin));
