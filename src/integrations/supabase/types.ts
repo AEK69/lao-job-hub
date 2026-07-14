@@ -844,6 +844,92 @@ export type Database = {
     }
     Functions: {
       accept_job_escrow: { Args: { _job_id: string }; Returns: Json }
+      admin_get_jobs: {
+        Args: never
+        Returns: {
+          accepted_at: string | null
+          accepted_by: string | null
+          address: string | null
+          amount_paid: number | null
+          assigned_staff_id: string | null
+          base_price: number | null
+          category: string | null
+          created_at: string | null
+          created_by: string | null
+          customer_address: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          deposit_amount: number | null
+          description: string | null
+          discount: number | null
+          district: string | null
+          employer_confirmed: boolean
+          escrow_amount: number
+          id: string
+          image_url: string | null
+          is_featured: boolean
+          is_urgent: boolean
+          job_number: string
+          job_status: string | null
+          job_type: string | null
+          lat: number | null
+          lng: number | null
+          material_cost: number | null
+          payment_method: string | null
+          payment_status: string | null
+          phone: string | null
+          post_type: string | null
+          poster_name: string | null
+          priority: string | null
+          salary: string | null
+          salary_type: string | null
+          scheduled_date: string | null
+          scheduled_time: string | null
+          status: string
+          title: string | null
+          total_price: number | null
+          updated_at: string | null
+          user_id: string | null
+          work_date: string | null
+          work_time: string | null
+          worker_confirmed: boolean
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      admin_get_profiles: {
+        Args: never
+        Returns: {
+          address: string | null
+          avatar_url: string | null
+          bio: string | null
+          coin_balance: number
+          created_at: string
+          date_of_birth: string | null
+          display_name: string
+          district: string | null
+          full_name: string | null
+          guardian_name: string | null
+          guardian_phone: string | null
+          id: string
+          id_card_url: string | null
+          is_student: boolean
+          kyc_status: string
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "profiles"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       admin_topup_coins: {
         Args: { _amount: number; _description: string; _to_user_id: string }
         Returns: Json
@@ -854,6 +940,44 @@ export type Database = {
       }
       cancel_accepted_job: { Args: { _job_id: string }; Returns: Json }
       confirm_job_completion: { Args: { _job_id: string }; Returns: Json }
+      get_job_contact: {
+        Args: { _job_id: string }
+        Returns: {
+          customer_address: string
+          customer_name: string
+          customer_phone: string
+          phone: string
+        }[]
+      }
+      get_my_profile: {
+        Args: never
+        Returns: {
+          address: string | null
+          avatar_url: string | null
+          bio: string | null
+          coin_balance: number
+          created_at: string
+          date_of_birth: string | null
+          display_name: string
+          district: string | null
+          full_name: string | null
+          guardian_name: string | null
+          guardian_phone: string | null
+          id: string
+          id_card_url: string | null
+          is_student: boolean
+          kyc_status: string
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "profiles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
       spend_coins: {
         Args: { _amount: number; _description: string; _type: string }
