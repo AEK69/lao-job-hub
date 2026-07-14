@@ -30,7 +30,7 @@ const Index = () => {
       setLoading(true);
       try {
         const { data, count } = await supabase
-          .from('jobs')
+          .from('jobs_public' as any)
           .select('*', { count: 'exact' })
           .eq('status', 'active')
           .order('is_featured', { ascending: false })
