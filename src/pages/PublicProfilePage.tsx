@@ -36,13 +36,13 @@ const PublicProfilePage = () => {
     const load = async () => {
       if (!userId) return;
       const [profileRes, reviewsRes, jobsRes] = await Promise.all([
-        supabase.from('profiles').select('display_name, avatar_url, district, bio, kyc_status, created_at, user_id').eq('user_id', userId).single(),
+        supabase.from('public_profiles' as any).select('display_name, avatar_url, district, bio, kyc_status, created_at, user_id').eq('user_id', userId).single(),
         supabase.from('reviews').select('*').eq('reviewed_id', userId).order('created_at', { ascending: false }),
-        supabase.from('jobs').select('*').eq('user_id', userId).eq('status', 'active').order('created_at', { ascending: false }).limit(10),
+        supabase.from('jobs_public' as any).select('*').eq('user_id', userId).eq('status', 'active').order('created_at', { ascending: false }).limit(10),
       ]);
-      setProfile(profileRes.data as PublicProfile | null);
+      setProfile((profileRes.data as unknown) as PublicProfile | null);
       setReviews(reviewsRes.data || []);
-      setJobs((jobsRes.data as Job[]) || []);
+      setJobs(((jobsRes.data as unknown) as Job[]) || []);
       setLoading(false);
     };
     load();

@@ -42,8 +42,13 @@ const JobDetailPage = () => {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase.from('jobs').select('*').eq('id', id).single();
-      setJob(data as Job | null);
+      // Try full row first (owner/participant/admin); fall back to public view for browsers
+      let { data } = await supabase.from('jobs').select('*').eq('id', id).maybeSingle();
+      if (!data) {
+        const res = await supabase.from('jobs_public' as any).select('*').eq('id', id).maybeSingle();
+        data = res.data as any;
+      }
+      setJob((data as unknown) as Job | null);
       setLoading(false);
 
       if (data) {
@@ -54,7 +59,7 @@ const JobDetailPage = () => {
         }
         // Load acceptor name
         if ((data as any).accepted_by) {
-          const { data: p } = await supabase.from('profiles').select('display_name').eq('user_id', (data as any).accepted_by).single();
+          const { data: p } = await supabase.from('public_profiles' as any).select('display_name').eq('user_id', (data as any).accepted_by).single() as any;
           if (p) setAcceptorName(p.display_name);
         }
       }

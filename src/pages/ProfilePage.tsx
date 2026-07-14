@@ -129,10 +129,10 @@ const ProfilePage = () => {
       setAvgRating(Math.round(avg * 10) / 10);
 
       const enriched = await Promise.all(data.map(async (r) => {
-        const { data: prof } = await supabase.from('profiles').select('display_name').eq('user_id', r.reviewer_id).single();
+        const { data: prof } = await supabase.from('public_profiles' as any).select('display_name').eq('user_id', r.reviewer_id).single() as any;
         let jobTitle = '';
         if (r.job_id) {
-          const { data: job } = await supabase.from('jobs').select('title').eq('id', r.job_id).single();
+          const { data: job } = await supabase.from('jobs_public' as any).select('title').eq('id', r.job_id).single() as any;
           jobTitle = job?.title || '';
         }
         return { ...r, reviewer_name: prof?.display_name || '?', job_title: jobTitle };
