@@ -136,6 +136,7 @@ const AuthPage = () => {
           setStep('kyc');
         } else {
           toast.success(l('ຍິນດີຕ້ອນຮັບ!', 'ยินดีต้อนรับ!', 'Welcome!'));
+          if (nextPath) { window.location.href = returnTo; return; }
           navigate('/');
         }
       }
