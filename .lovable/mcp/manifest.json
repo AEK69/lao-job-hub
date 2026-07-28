@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "sdk_version": "0.25.0",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://tnaqgenjhgboqtqioida.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "workday33-mcp",
+      "version": "0.1.0",
+      "title": "WorkDay33"
+    },
+    "tools": [
+      {
+        "name": "list_jobs",
+        "title": "List jobs",
+        "description": "List public jobs on WorkDay33. Optionally filter by status (active, accepted, completed) or by district. Returns up to `limit` rows (default 20, max 50).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "status": {
+              "description": "Filter by job status.",
+              "type": "string",
+              "enum": [
+                "active",
+                "accepted",
+                "completed",
+                "cancelled"
+              ]
+            },
+            "district": {
+              "description": "Filter by district id.",
+              "type": "string"
+            },
+            "limit": {
+              "description": "Max rows to return (default 20).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_job",
+        "title": "Get job",
+        "description": "Fetch a single job by id. Full sensitive fields visible only to owner / assigned worker / admin per RLS.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "Job id (uuid)."
+            }
+          },
+          "required": [
+            "id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_me",
+        "title": "Get my profile",
+        "description": "Return the signed-in user's WorkDay33 profile (display name, coin balance, KYC status, district).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_my_jobs",
+        "title": "List my jobs",
+        "description": "List jobs the signed-in user posted or is working on. `role` filters between 'posted' (as employer) and 'working' (as worker).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "role": {
+              "description": "Which side of the job to filter on (default 'all').",
+              "type": "string",
+              "enum": [
+                "posted",
+                "working",
+                "all"
+              ]
+            }
+          }
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
