@@ -17,6 +17,7 @@ import ProfilePage from "./pages/ProfilePage.tsx";
 import KYCPage from "./pages/KYCPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import PublicProfilePage from "./pages/PublicProfilePage.tsx";
+import OAuthConsent from "./pages/OAuthConsent.tsx";
 import { BottomNavigation } from "@/components/BottomNavigation";
 import { AIAssistant } from "@/components/AIAssistant";
 
@@ -43,6 +44,7 @@ const App = () => (
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/kyc" element={<KYCPage />} />
                 <Route path="/user/:userId" element={<PublicProfilePage />} />
+                <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
               <BottomNavigation />
