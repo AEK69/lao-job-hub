@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable';
 import { useAppStore } from '@/lib/store';
@@ -20,6 +20,12 @@ import { Mail, Phone, Eye, EyeOff, Upload, ShieldCheck } from 'lucide-react';
 const AuthPage = () => {
   const { language } = useAppStore();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const rawNext = searchParams.get('next') || '';
+  // Only allow same-origin relative paths as post-auth targets.
+  const nextPath = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '';
+  const returnTo = nextPath || '/';
+  const returnUrl = window.location.origin + returnTo;
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [step, setStep] = useState<'auth' | 'kyc'>('auth');
   const [authMethod, setAuthMethod] = useState<'email' | 'phone'>('email');
@@ -65,18 +71,20 @@ const AuthPage = () => {
           password,
           options: {
             data: { display_name: displayName },
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: returnUrl,
           },
         });
         if (error) throw error;
         if (data.user) {
           toast.success(l('ກວດສອບອີເມວເພື່ອຢືນຢັນ!', 'ตรวจสอบอีเมลเพื่อยืนยัน!', 'Check your email to confirm!'));
+          if (nextPath) { window.location.href = returnTo; return; }
           setStep('kyc');
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success(l('ຍິນດີຕ້ອນຮັບ!', 'ยินดีต้อนรับ!', 'Welcome back!'));
+        if (nextPath) { window.location.href = returnTo; return; }
         navigate('/');
       }
     } catch (err: any) {
@@ -90,11 +98,12 @@ const AuthPage = () => {
     setLoading(true);
     try {
       const result = await lovable.auth.signInWithOAuth('google', {
-        redirect_uri: window.location.origin,
+        redirect_uri: returnUrl,
       });
       if (result.error) throw result.error;
       if (result.redirected) return;
       toast.success(l('ຍິນດີຕ້ອນຮັບ!', 'ยินดีต้อนรับ!', 'Welcome!'));
+      if (nextPath) { window.location.href = returnTo; return; }
       navigate('/');
     } catch (err: any) {
       toast.error(err.message || 'Google sign-in failed');
@@ -127,6 +136,7 @@ const AuthPage = () => {
           setStep('kyc');
         } else {
           toast.success(l('ຍິນດີຕ້ອນຮັບ!', 'ยินดีต้อนรับ!', 'Welcome!'));
+          if (nextPath) { window.location.href = returnTo; return; }
           navigate('/');
         }
       }
